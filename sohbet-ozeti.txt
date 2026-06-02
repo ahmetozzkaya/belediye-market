@@ -1,0 +1,176 @@
+================================================================
+BELEDİYE MARKET - PROJE SOHBET ÖZETİ
+Tarih: 2 Haziran 2026
+================================================================
+
+----------------------------------------------------------------
+PROJE FİKRİ
+----------------------------------------------------------------
+
+Getir, Yemeksepeti, Trendyol Yemek gibi büyük pazaryerlerine
+alternatif olarak belediyelere satılacak bir yemek/ürün sipariş
+uygulaması.
+
+AMAÇ:
+- Biz: Uygulamayı belediyelere satarak gelir elde etmek
+- Belediye: Halka ve esnafa hizmet, seçim vaadi, istihdam
+- Esnaf: Büyük platformlara yüksek komisyon ödemek yerine
+  belediyenin platformunda daha çok kazanmak
+- Halk: Gıda ve eve servis ürünlere daha ucuz ulaşmak
+
+WHITE-LABEL YAPI:
+Her belediye kendi logosu, adı ve renkleriyle kullanabilir.
+(Örnek: Denizli Büyükşehir Belediyesi, Merkezefendi Belediyesi)
+
+----------------------------------------------------------------
+UYGULAMA YAPISI - 4 PANEL
+----------------------------------------------------------------
+
+1. MÜŞTERİ PANELİ
+   - Restoran/işletme listesi
+   - Menü görüntüleme
+   - Sepet ve sipariş verme
+   - Sipariş takibi
+
+2. ESNAF PANELİ (Yarı Admin)
+   - Menü yönetimi
+   - Gelen siparişleri görüntüleme
+   - Kazanç raporu ve sipariş geçmişi
+   - Kurye tercihi (kendi kuryesi veya belediye kuryesi)
+
+3. KURYE PANELİ
+   - Kendine atanan siparişleri görme
+   - Teslimat durumu güncelleme
+   Not: Belediye kendi işçisi olarak kurye alabilir
+   → "Belediye istihdam da sağlıyor!" avantajı
+
+4. SÜPER ADMİN PANELİ
+   - Her şeyin yönetimi
+   - Belediye logo/renk ayarları (white-label)
+   - Kullanıcı, esnaf, kurye yönetimi
+   - Genel raporlama ve analitik
+
+----------------------------------------------------------------
+TEKNOLOJİ STACK KARARLARI
+----------------------------------------------------------------
+
+FRONTEND:   React + Tailwind CSS
+            → Component yapısı white-label için ideal
+            → İleride React Native'e geçiş kolaylığı
+            → HTML/CSS bu ölçekte yönetilemez
+
+BACKEND:    Node.js + Express
+            → JavaScript ile yazılır (frontend ile aynı dil)
+            → Tek dil öğren, her yerde yaz avantajı
+            → Gerçek zamanlı özellikler için uygun
+            → WebLogic (Java için, bizimle alakasız)
+
+VERİTABANI: PostgreSQL
+            → Tamamen ücretsiz ve açık kaynak
+            → Finansal kayıtlar için güçlü ACID uyumu
+            → MySQL'i Oracle satın aldı (dolaylı Oracle bağımlılığı)
+            → Oracle: çok pahalı, kurumsal, bizim için fazla ağır
+
+AUTH:       JWT (JSON Web Token)
+            → 4 farklı rol için kimlik ve yetki yönetimi
+            → Şifreli token içinde userId + rol bilgisi taşır
+            → Sunucu hafızasına ihtiyaç duymaz (ölçeklenebilir)
+
+----------------------------------------------------------------
+TEMEL KAVRAMLAR (Sohbette Öğrenilen)
+----------------------------------------------------------------
+
+JavaScript vs Node.js:
+- JavaScript: Programlama dilidir
+- Node.js: JavaScript'i tarayıcı dışında (sunucuda) çalıştıran ortam
+- Backend de JavaScript ile yazılır, Node.js sadece motor
+
+JWT Nasıl Çalışır:
+1. Kullanıcı giriş yapar (email + şifre)
+2. Sunucu doğrular, şifreli token verir
+3. Her istekte token yanında taşınır
+4. Sunucu token'dan rolü okur, yetkiyi belirler
+
+Neden Oracle/MySQL değil PostgreSQL:
+- Oracle: Pahalı lisans, Java için, bizimle alakasız
+- MySQL: Oracle'a ait, finansal sorgularda zayıf
+- PostgreSQL: Ücretsiz, topluluk odaklı, finansal veriler için güçlü
+
+----------------------------------------------------------------
+SUNUCU / DEPLOYMENT PLANI
+----------------------------------------------------------------
+
+Aşama 1 - Geliştirme:
+  Localhost (kendi bilgisayar) - Maliyet: Sıfır
+
+Aşama 2 - Demo (Belediyeye Gösterim):
+  Railway.app veya Render.com
+  - Ücretsiz tier mevcut
+  - 5 dakikada yayına alınır
+  - Gerçek URL alınır
+  - PostgreSQL dahil
+
+Aşama 3 - Satış Sonrası Production:
+  VPS: Hetzner veya DigitalOcean
+  - Aylık ~10$ civarı
+  - Node.js + PostgreSQL + Nginx kurulur
+  - Nginx: dışarıdan gelen trafiği Node.js'e yönlendiren ara katman
+
+Aşama 4 - Belediye Kendi Sunucusunda:
+  Docker container olarak paketlenir
+  - Belediyenin IT ekibi kendi sunucusuna kurar
+  - Biz güncelleme göndeririz
+
+NOT: WebLogic (Oracle/Java için), OpenShift/Kubernetes (çok büyük
+ölçek için) bu aşamada gerekli değil.
+
+----------------------------------------------------------------
+ÖDEME MİMARİSİ (İleride Entegre Edilecek)
+----------------------------------------------------------------
+
+Yapı:
+  Sipariş → Toplam tutar kaydedilir
+  Komisyon oranı → Esnaf başına veya global ayar
+  Esnaf kazancı → Toplam - Komisyon
+  Ödeme geçmişi → Esnafa ne zaman ne kadar ödendi tablosu
+
+Ödeme gateway seçenekleri (ileride):
+  - iyzico
+  - PayTR
+
+Şu an: Ödeme sistemi entegre edilmeyecek ama veri modeli
+ileride entegrasyona hazır kurulacak.
+
+----------------------------------------------------------------
+MEVCUT PROJE DURUMU
+----------------------------------------------------------------
+
+Klasör yapısı:
+  Desktop/
+  └── claude-demo/
+      ├── to-do-list/
+      │   ├── index.html
+      │   ├── style.css
+      │   └── app.js
+      └── belediye-market/    ← YENİ PROJE (bu klasör)
+
+Sonraki adım: Proje klasör yapısı oluşturma ve kodlamaya başlama
+
+----------------------------------------------------------------
+CLAUDE CODE KULLANIM NOTLARI
+----------------------------------------------------------------
+
+Sohbete devam etmek için:
+  claude --continue   veya   claude -c
+
+Eski sohbetlerden seçmek için:
+  claude --resume
+
+VS Code terminali vs VS Code Chat paneli:
+  - Terminal (claude CLI): Hafıza sistemi burada, beni tanıyan ortam
+  - VS Code Chat paneli: Ayrı bağlantı, hafızası yok, farklı oturum
+  → Her zaman terminal üzerinden gel
+
+================================================================
+EOF
+================================================================
