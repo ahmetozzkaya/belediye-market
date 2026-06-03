@@ -47,7 +47,7 @@ export default function MerchantPanel() {
         ))}
       </div>
 
-      {tab === 'orders' && <OrderManager />}
+      {tab === 'orders' && <OrderManager restaurantId={restaurant.id} />}
       {tab === 'menu' && <MenuManager restaurant={restaurant} />}
       {tab === 'profile' && <RestaurantSetup existing={restaurant} onUpdated={setRestaurant} />}
     </div>

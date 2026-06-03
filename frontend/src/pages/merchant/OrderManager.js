@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../../services/api';
+import socket from '../../services/socket';
 
 const statusLabels = {
   pending: { label: 'Bekliyor', color: 'bg-yellow-100 text-yellow-700' },
@@ -19,10 +20,12 @@ const nextStatus = {
   on_the_way: { status: 'delivered', label: 'Teslim Edildi' },
 };
 
-export default function OrderManager() {
+export default function OrderManager({ restaurantId }) {
   const [orders, setOrders] = useState([]);
   const [tab, setTab] = useState('active');
   const [loading, setLoading] = useState(true);
+  const [newOrderAlert, setNewOrderAlert] = useState(false);
+  const audioRef = useRef(null);
 
   const fetchOrders = () => {
     api.get('/orders/restaurant')
@@ -31,7 +34,23 @@ export default function OrderManager() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchOrders(); }, []);
+  useEffect(() => {
+    fetchOrders();
+
+    // Restoran odasına katıl
+    if (restaurantId) socket.emit('join', `restaurant_${restaurantId}`);
+
+    // Yeni sipariş gelince
+    socket.on('new_order', () => {
+      fetchOrders();
+      setNewOrderAlert(true);
+      // Tarayıcı bildirim sesi
+      try { new Audio('/notification.mp3').play(); } catch {}
+      setTimeout(() => setNewOrderAlert(false), 5000);
+    });
+
+    return () => { socket.off('new_order'); };
+  }, [restaurantId]);
 
   const updateStatus = async (orderId, status) => {
     try {
@@ -50,10 +69,18 @@ export default function OrderManager() {
 
   return (
     <div>
+      {/* Yeni sipariş bildirimi */}
+      {newOrderAlert && (
+        <div className="mb-4 bg-green-500 text-white px-4 py-3 rounded-xl flex items-center gap-3 animate-pulse">
+          <span className="text-xl">🔔</span>
+          <span className="font-semibold">Yeni sipariş geldi!</span>
+        </div>
+      )}
+
       <div className="flex gap-2 mb-4">
         <button onClick={() => setTab('active')}
           className={`px-4 py-2 rounded-lg font-medium text-sm transition ${tab === 'active' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-          Aktif ({active.length})
+          Aktif {active.length > 0 && <span className="ml-1 bg-white text-red-600 text-xs px-1.5 py-0.5 rounded-full">{active.length}</span>}
         </button>
         <button onClick={() => setTab('completed')}
           className={`px-4 py-2 rounded-lg font-medium text-sm transition ${tab === 'completed' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
@@ -75,7 +102,7 @@ export default function OrderManager() {
             const s = statusLabels[order.status] || { label: order.status, color: 'bg-gray-100 text-gray-700' };
             const next = nextStatus[order.status];
             return (
-              <div key={order.id} className="bg-white rounded-xl shadow p-4 border border-gray-100">
+              <div key={order.id} className={`bg-white rounded-xl shadow p-4 border ${order.status === 'pending' ? 'border-yellow-300' : 'border-gray-100'}`}>
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <p className="font-semibold text-gray-800">#{order.id} — {order.customer_name}</p>

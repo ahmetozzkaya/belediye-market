@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import socket from '../../services/socket';
 
 export default function CourierPanel() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [newAlert, setNewAlert] = useState(false);
 
   const fetchOrders = () => {
     api.get('/orders/courier')
@@ -12,7 +14,19 @@ export default function CourierPanel() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchOrders(); }, []);
+  useEffect(() => {
+    fetchOrders();
+
+    // Yeni hazır sipariş gelince
+    socket.on('order_ready', () => {
+      fetchOrders();
+      setNewAlert(true);
+      try { new Audio('/notification.mp3').play(); } catch {}
+      setTimeout(() => setNewAlert(false), 5000);
+    });
+
+    return () => { socket.off('order_ready'); };
+  }, []);
 
   const updateStatus = async (orderId, status) => {
     try {
@@ -30,7 +44,14 @@ export default function CourierPanel() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Kurye Paneli</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-4">Kurye Paneli</h1>
+
+      {newAlert && (
+        <div className="mb-4 bg-green-500 text-white px-4 py-3 rounded-xl flex items-center gap-3 animate-pulse">
+          <span className="text-xl">🔔</span>
+          <span className="font-semibold">Yeni teslimat hazır!</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-white rounded-xl shadow p-4 text-center">

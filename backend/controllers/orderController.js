@@ -38,6 +38,14 @@ const create = async (req, res) => {
     );
 
     await client.query('COMMIT');
+
+    // Esnafa anlık bildirim: yeni sipariş geldi
+    const io = req.app.get('io');
+    io.to(`restaurant_${restaurant_id}`).emit('new_order', {
+      ...order.rows[0],
+      total_amount,
+    });
+
     res.status(201).json(order.rows[0]);
   } catch (err) {
     await client.query('ROLLBACK');
@@ -95,7 +103,19 @@ const updateStatus = async (req, res) => {
       [status, id]
     );
     if (!result.rows.length) return res.status(404).json({ message: 'Sipariş bulunamadı' });
-    res.json(result.rows[0]);
+
+    const order = result.rows[0];
+    const io = req.app.get('io');
+
+    // Müşteriye durum güncellemesi gönder
+    io.to(`customer_${order.customer_id}`).emit('order_updated', { id: order.id, status });
+
+    // Sipariş hazırsa tüm kuryelere bildir
+    if (status === 'ready') {
+      io.to('couriers').emit('order_ready', { id: order.id, restaurant_id: order.restaurant_id });
+    }
+
+    res.json(order);
   } catch (err) {
     res.status(500).json({ message: 'Sunucu hatası', error: err.message });
   }
