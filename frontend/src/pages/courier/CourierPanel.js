@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import socket from '../../services/socket';
+import { playBeep } from '../../services/notify';
 
 export default function CourierPanel() {
   const [orders, setOrders] = useState([]);
@@ -21,7 +22,7 @@ export default function CourierPanel() {
     socket.on('order_ready', () => {
       fetchOrders();
       setNewAlert(true);
-      try { new Audio('/notification.mp3').play(); } catch {}
+      playBeep();
       setTimeout(() => setNewAlert(false), 5000);
     });
 

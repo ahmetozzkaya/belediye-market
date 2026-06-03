@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import socket from '../../services/socket';
+import { playBeep } from '../../services/notify';
 
 const statusLabels = {
   pending: { label: 'Bekliyor', color: 'bg-yellow-100 text-yellow-700' },
@@ -37,19 +38,28 @@ export default function OrderManager({ restaurantId }) {
   useEffect(() => {
     fetchOrders();
 
-    // Restoran odasına katıl
-    if (restaurantId) socket.emit('join', `restaurant_${restaurantId}`);
+    // Socket bağlandıktan sonra restoran odasına katıl
+    const joinRoom = () => {
+      if (restaurantId) socket.emit('join', `restaurant_${restaurantId}`);
+    };
+    if (socket.connected) {
+      joinRoom();
+    } else {
+      socket.once('connect', joinRoom);
+    }
 
     // Yeni sipariş gelince
     socket.on('new_order', () => {
       fetchOrders();
       setNewOrderAlert(true);
-      // Tarayıcı bildirim sesi
-      try { new Audio('/notification.mp3').play(); } catch {}
+      playBeep();
       setTimeout(() => setNewOrderAlert(false), 5000);
     });
 
-    return () => { socket.off('new_order'); };
+    return () => {
+      socket.off('new_order');
+      socket.off('connect', joinRoom);
+    };
   }, [restaurantId]);
 
   const updateStatus = async (orderId, status) => {

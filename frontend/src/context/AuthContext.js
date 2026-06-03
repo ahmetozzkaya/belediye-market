@@ -10,11 +10,15 @@ export const AuthProvider = ({ children }) => {
 
   const connectSocket = (userData) => {
     socket.connect();
-    // Kullanıcı kendi odasına katılır
-    socket.emit('join', `customer_${userData.id}`);
-    // Kurye ise ortak kurye odasına da katılır
-    if (userData.role === 'courier') socket.emit('join', 'couriers');
-    // Esnaf ise restoran odasına katılmak için restaurant_id lazım — MerchantPanel halleder
+    const onConnect = () => {
+      socket.emit('join', `customer_${userData.id}`);
+      if (userData.role === 'courier') socket.emit('join', 'couriers');
+    };
+    if (socket.connected) {
+      onConnect();
+    } else {
+      socket.once('connect', onConnect);
+    }
   };
 
   useEffect(() => {
