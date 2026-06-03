@@ -9,16 +9,18 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   const connectSocket = (userData) => {
-    socket.connect();
-    const onConnect = () => {
+    const joinRooms = () => {
       socket.emit('join', `customer_${userData.id}`);
-      if (userData.role === 'courier') socket.emit('join', 'couriers');
+      if (userData.role === 'courier') {
+        socket.emit('join', 'couriers');
+        socket.emit('join', `courier_${userData.id}`);
+      }
     };
-    if (socket.connected) {
-      onConnect();
-    } else {
-      socket.once('connect', onConnect);
-    }
+    // Önceki listener varsa temizle, her bağlanmada (ilk + yeniden) odaları join et
+    socket.off('connect', joinRooms);
+    socket.on('connect', joinRooms);
+    if (socket.connected) joinRooms();
+    else socket.connect();
   };
 
   useEffect(() => {

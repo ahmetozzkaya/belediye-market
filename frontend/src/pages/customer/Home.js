@@ -17,7 +17,7 @@ export default function Home() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">İşletmeler</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">Restoranlar</h1>
       {restaurants.length === 0 ? (
         <div className="text-center text-gray-500 mt-20">
           <p className="text-4xl mb-3">🍽️</p>

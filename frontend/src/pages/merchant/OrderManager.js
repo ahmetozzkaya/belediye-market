@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import socket from '../../services/socket';
-import { playBeep } from '../../services/notify';
+import { playBeep, unlockAudio } from '../../services/notify';
+import { useOrderAlert } from '../../hooks/useOrderAlert';
+import OrderAlertBanner from '../../components/OrderAlertBanner';
+import SoundToggle from '../../components/SoundToggle';
 
 const statusLabels = {
   pending: { label: 'Bekliyor', color: 'bg-yellow-100 text-yellow-700' },
@@ -17,16 +20,13 @@ const nextStatus = {
   pending: { status: 'confirmed', label: 'Onayla' },
   confirmed: { status: 'preparing', label: 'Hazırlamaya Başla' },
   preparing: { status: 'ready', label: 'Hazır' },
-  ready: { status: 'on_the_way', label: 'Yola Çıktı' },
-  on_the_way: { status: 'delivered', label: 'Teslim Edildi' },
 };
 
 export default function OrderManager({ restaurantId }) {
   const [orders, setOrders] = useState([]);
   const [tab, setTab] = useState('active');
   const [loading, setLoading] = useState(true);
-  const [newOrderAlert, setNewOrderAlert] = useState(false);
-  const audioRef = useRef(null);
+  const { alertState, trigger, dismiss } = useOrderAlert();
 
   const fetchOrders = () => {
     api.get('/orders/restaurant')
@@ -38,31 +38,34 @@ export default function OrderManager({ restaurantId }) {
   useEffect(() => {
     fetchOrders();
 
-    // Socket bağlandıktan sonra restoran odasına katıl
+    // Her bağlanmada (ilk + yeniden) restoran odasına katıl
     const joinRoom = () => {
       if (restaurantId) socket.emit('join', `restaurant_${restaurantId}`);
     };
-    if (socket.connected) {
-      joinRoom();
-    } else {
-      socket.once('connect', joinRoom);
-    }
+    socket.on('connect', joinRoom);
+    if (socket.connected) joinRoom();
 
-    // Yeni sipariş gelince
     socket.on('new_order', () => {
       fetchOrders();
-      setNewOrderAlert(true);
+      trigger();
       playBeep();
-      setTimeout(() => setNewOrderAlert(false), 5000);
     });
+
+    // Kurye atandığında veya durum güncellendiğinde yenile
+    socket.on('courier_assigned', () => fetchOrders());
+    socket.on('order_updated', () => fetchOrders());
 
     return () => {
       socket.off('new_order');
+      socket.off('courier_assigned');
+      socket.off('order_updated');
       socket.off('connect', joinRoom);
     };
   }, [restaurantId]);
 
   const updateStatus = async (orderId, status) => {
+    unlockAudio();
+    dismiss();
     try {
       await api.patch(`/orders/${orderId}/status`, { status });
       fetchOrders();
@@ -79,15 +82,9 @@ export default function OrderManager({ restaurantId }) {
 
   return (
     <div>
-      {/* Yeni sipariş bildirimi */}
-      {newOrderAlert && (
-        <div className="mb-4 bg-green-500 text-white px-4 py-3 rounded-xl flex items-center gap-3 animate-pulse">
-          <span className="text-xl">🔔</span>
-          <span className="font-semibold">Yeni sipariş geldi!</span>
-        </div>
-      )}
+      <OrderAlertBanner alertState={alertState} message="Yeni sipariş geldi!" />
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 items-center">
         <button onClick={() => setTab('active')}
           className={`px-4 py-2 rounded-lg font-medium text-sm transition ${tab === 'active' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
           Aktif {active.length > 0 && <span className="ml-1 bg-white text-red-600 text-xs px-1.5 py-0.5 rounded-full">{active.length}</span>}
@@ -96,9 +93,10 @@ export default function OrderManager({ restaurantId }) {
           className={`px-4 py-2 rounded-lg font-medium text-sm transition ${tab === 'completed' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
           Tamamlanan ({completed.length})
         </button>
-        <button onClick={fetchOrders} className="ml-auto text-sm text-gray-500 hover:text-gray-700 px-3 py-2 hover:bg-gray-100 rounded-lg transition">
+        <button onClick={fetchOrders} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 hover:bg-gray-100 rounded-lg transition">
           ↻ Yenile
         </button>
+        <div className="ml-auto"><SoundToggle /></div>
       </div>
 
       {displayed.length === 0 ? (
@@ -125,7 +123,13 @@ export default function OrderManager({ restaurantId }) {
                     <p key={i}>{item.name} x{item.quantity} — {(item.unit_price * item.quantity).toFixed(2)} ₺</p>
                   ))}
                 </div>
-                {order.notes && <p className="text-xs text-gray-400 italic mb-2">Not: {order.notes}</p>}
+                {order.notes && <p className="text-xs text-gray-400 italic mb-1">Not: {order.notes}</p>}
+                {order.courier_name && (
+                  <p className="text-xs text-indigo-600 mb-1">🛵 Kurye: <span className="font-medium">{order.courier_name}</span></p>
+                )}
+                {order.status === 'ready' && !order.courier_name && (
+                  <p className="text-xs text-orange-500 mb-1">⏳ Kurye atanıyor...</p>
+                )}
                 <div className="flex justify-between items-center pt-2 border-t">
                   <p className="text-xs text-gray-400">📍 {order.delivery_address}</p>
                   <div className="flex items-center gap-3">

@@ -21,15 +21,14 @@ app.use('/api/restaurants', require('./routes/restaurants'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/menu', require('./routes/menu'));
+app.use('/api/addresses', require('./routes/addresses'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'Sunucu çalışıyor' }));
 
 io.on('connection', (socket) => {
-  // Kullanıcı bağlanınca kendi odasına katılır
   socket.on('join', (roomId) => {
     socket.join(roomId);
   });
-
   socket.on('disconnect', () => {});
 });
 

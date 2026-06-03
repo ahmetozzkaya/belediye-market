@@ -1,7 +1,28 @@
-// MP3 dosyasına gerek kalmadan tarayıcının ses motoruyla bip sesi çalar
-export const playBeep = () => {
+let audioCtx = null;
+let audioUnlocked = false;
+
+const getCtx = () => {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+};
+
+export const isAudioUnlocked = () => audioUnlocked;
+
+export const unlockAudio = () => {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getCtx();
+    ctx.resume().then(() => { audioUnlocked = true; });
+  } catch {}
+};
+
+export const disableAudio = () => { audioUnlocked = false; };
+
+export const playBeep = () => {
+  if (!audioUnlocked) return;
+  try {
+    const ctx = getCtx();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);

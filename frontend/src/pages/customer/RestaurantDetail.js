@@ -3,19 +3,34 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
+const LAST_ADDRESS_KEY = 'lastSelectedAddressId';
+
 export default function RestaurantDetail() {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [restaurant, setRestaurant] = useState(null);
   const [cart, setCart] = useState([]);
-  const [address, setAddress] = useState(user?.address || '');
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [showNewAddress, setShowNewAddress] = useState(false);
+  const [newAddress, setNewAddress] = useState({ title: '', address: '' });
   const [notes, setNotes] = useState('');
   const [ordering, setOrdering] = useState(false);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     api.get(`/restaurants/${id}`).then(res => setRestaurant(res.data)).catch(console.error);
+    api.get('/addresses').then(res => {
+      const addrs = res.data;
+      setAddresses(addrs);
+      if (addrs.length > 0) {
+        const lastId = parseInt(localStorage.getItem(LAST_ADDRESS_KEY));
+        const lastExists = addrs.find(a => a.id === lastId);
+        const defaultAddr = addrs.find(a => a.is_default);
+        setSelectedAddressId(lastExists ? lastId : (defaultAddr?.id || addrs[0].id));
+      }
+    }).catch(() => {});
   }, [id]);
 
   const addToCart = (item) => {
@@ -26,19 +41,40 @@ export default function RestaurantDetail() {
     });
   };
 
-  const removeFromCart = (id) => setCart(prev => prev.filter(i => i.menu_item_id !== id));
+  const removeFromCart = (itemId) => setCart(prev => prev.filter(i => i.menu_item_id !== itemId));
 
   const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
+  const handleSelectAddress = (addrId) => {
+    setSelectedAddressId(addrId);
+    localStorage.setItem(LAST_ADDRESS_KEY, addrId);
+    setShowNewAddress(false);
+  };
+
+  const handleAddNewAddress = async () => {
+    if (!newAddress.title.trim() || !newAddress.address.trim()) return alert('Başlık ve adres zorunludur');
+    try {
+      const res = await api.post('/addresses', newAddress);
+      const added = res.data;
+      setAddresses(prev => [added, ...prev]);
+      handleSelectAddress(added.id);
+      setNewAddress({ title: '', address: '' });
+      setShowNewAddress(false);
+    } catch { alert('Adres eklenemedi'); }
+  };
+
+  const selectedAddress = addresses.find(a => a.id === selectedAddressId);
+
   const placeOrder = async () => {
     if (!user) return navigate('/login');
-    if (!address) return alert('Lütfen teslimat adresinizi girin');
+    const deliveryAddress = selectedAddress?.address;
+    if (!deliveryAddress) return alert('Lütfen bir teslimat adresi seçin');
     setOrdering(true);
     try {
       await api.post('/orders', {
         restaurant_id: parseInt(id),
         items: cart.map(i => ({ menu_item_id: i.menu_item_id, quantity: i.quantity })),
-        delivery_address: address,
+        delivery_address: deliveryAddress,
         notes,
       });
       setSuccess(true);
@@ -68,6 +104,7 @@ export default function RestaurantDetail() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Menü */}
       <div className="lg:col-span-2">
         <h1 className="text-2xl font-bold text-gray-800 mb-1">{restaurant.name}</h1>
         <p className="text-gray-500 mb-6">📍 {restaurant.address}</p>
@@ -97,6 +134,7 @@ export default function RestaurantDetail() {
         ))}
       </div>
 
+      {/* Sepet */}
       <div className="bg-white rounded-xl shadow p-4 h-fit sticky top-4">
         <h3 className="font-bold text-gray-800 mb-3">Sepet</h3>
         {cart.length === 0 ? (
@@ -112,20 +150,67 @@ export default function RestaurantDetail() {
                 </div>
               </div>
             ))}
-            <div className="border-t pt-2 mt-2 font-semibold flex justify-between">
+            <div className="border-t pt-2 mt-2 font-semibold flex justify-between mb-4">
               <span>Toplam</span>
               <span className="text-red-600">{total.toFixed(2)} ₺</span>
             </div>
-            <div className="mt-3 space-y-2">
-              <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Teslimat adresi *"
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
-              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Not (isteğe bağlı)"
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
-              <button onClick={placeOrder} disabled={ordering}
-                className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition font-medium text-sm disabled:opacity-50">
-                {ordering ? 'Sipariş veriliyor...' : 'Sipariş Ver'}
-              </button>
+
+            {/* Adres Seçimi */}
+            <div className="mb-3">
+              <p className="text-xs font-medium text-gray-700 mb-2">Teslimat Adresi</p>
+
+              {addresses.length > 0 && (
+                <div className="space-y-1.5 mb-2">
+                  {addresses.map(addr => (
+                    <label key={addr.id}
+                      className={`flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer transition ${selectedAddressId === addr.id && !showNewAddress ? 'border-red-400 bg-red-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                      <input type="radio" name="address" checked={selectedAddressId === addr.id && !showNewAddress}
+                        onChange={() => handleSelectAddress(addr.id)}
+                        className="mt-0.5 accent-red-600 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-gray-800">{addr.title}</p>
+                        <p className="text-xs text-gray-500 truncate">{addr.address}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {/* Yeni Adres Ekle */}
+              {showNewAddress ? (
+                <div className="border border-red-200 rounded-lg p-3 bg-red-50 space-y-2">
+                  <input value={newAddress.title} onChange={e => setNewAddress({...newAddress, title: e.target.value})}
+                    placeholder="Adres başlığı (Ev, İş...)"
+                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-red-400" />
+                  <textarea value={newAddress.address} onChange={e => setNewAddress({...newAddress, address: e.target.value})}
+                    rows={2} placeholder="Tam adres"
+                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-red-400" />
+                  <div className="flex gap-1">
+                    <button onClick={handleAddNewAddress}
+                      className="flex-1 bg-red-600 text-white py-1.5 rounded text-xs hover:bg-red-700 transition">
+                      Kaydet ve Seç
+                    </button>
+                    <button onClick={() => setShowNewAddress(false)}
+                      className="px-3 py-1.5 rounded text-xs text-gray-500 hover:bg-gray-100 transition">
+                      İptal
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => { setShowNewAddress(true); setSelectedAddressId(null); }}
+                  className="w-full text-xs text-red-600 border border-dashed border-red-300 rounded-lg py-2 hover:bg-red-50 transition">
+                  + Yeni adres ekle
+                </button>
+              )}
             </div>
+
+            <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Not (isteğe bağlı)"
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 mb-2" />
+
+            <button onClick={placeOrder} disabled={ordering || (!selectedAddress && !showNewAddress)}
+              className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition font-medium text-sm disabled:opacity-50">
+              {ordering ? 'Sipariş veriliyor...' : 'Sipariş Ver'}
+            </button>
           </>
         )}
       </div>

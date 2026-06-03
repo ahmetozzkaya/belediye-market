@@ -80,12 +80,14 @@ const getRestaurantOrders = async (req, res) => {
 
     const result = await pool.query(
       `SELECT o.*, u.name as customer_name, u.phone as customer_phone,
+       c.name as courier_name,
        json_agg(json_build_object('name', oi.name, 'quantity', oi.quantity, 'unit_price', oi.unit_price)) as items
        FROM orders o
        JOIN users u ON o.customer_id = u.id
+       LEFT JOIN users c ON o.courier_id = c.id
        JOIN order_items oi ON o.id = oi.order_id
        WHERE o.restaurant_id = $1
-       GROUP BY o.id, u.name, u.phone ORDER BY o.created_at DESC`,
+       GROUP BY o.id, u.name, u.phone, c.name ORDER BY o.created_at DESC`,
       [restaurant.rows[0].id]
     );
     res.json(result.rows);
@@ -94,9 +96,39 @@ const getRestaurantOrders = async (req, res) => {
   }
 };
 
+const assignCourier = async (orderId, restaurantId) => {
+  // En az aktif teslimata sahip kuryeyi bul
+  const result = await pool.query(`
+    SELECT u.id, u.name, COUNT(o.id) AS active_count
+    FROM users u
+    LEFT JOIN orders o ON o.courier_id = u.id AND o.status = 'on_the_way'
+    WHERE u.role = 'courier' AND u.is_active = true
+    GROUP BY u.id, u.name
+    ORDER BY active_count ASC, RANDOM()
+    LIMIT 1
+  `);
+  if (!result.rows.length) return null;
+
+  const courier = result.rows[0];
+  await pool.query('UPDATE orders SET courier_id = $1 WHERE id = $2', [courier.id, orderId]);
+  return courier;
+};
+
 const updateStatus = async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
+
+  // Esnaf sadece onaylama/hazırlama adımlarını yapabilir
+  const merchantOnlyStatuses = ['confirmed', 'preparing', 'ready', 'cancelled'];
+  if (req.user.role === 'merchant' && !merchantOnlyStatuses.includes(status)) {
+    return res.status(403).json({ message: 'Bu işlem kurye tarafından yapılmalıdır' });
+  }
+  // Kurye sadece teslimat adımlarını yapabilir
+  const courierOnlyStatuses = ['on_the_way', 'delivered'];
+  if (req.user.role === 'courier' && !courierOnlyStatuses.includes(status)) {
+    return res.status(403).json({ message: 'Bu işlem esnaf tarafından yapılmalıdır' });
+  }
+
   try {
     const result = await pool.query(
       `UPDATE orders SET status = $1 ${status === 'delivered' ? ', delivered_at = NOW()' : ''} WHERE id = $2 RETURNING *`,
@@ -107,12 +139,28 @@ const updateStatus = async (req, res) => {
     const order = result.rows[0];
     const io = req.app.get('io');
 
-    // Müşteriye durum güncellemesi gönder
+    // Müşteri ve restorana durum güncellemesi gönder
     io.to(`customer_${order.customer_id}`).emit('order_updated', { id: order.id, status });
+    io.to(`restaurant_${order.restaurant_id}`).emit('order_updated', { id: order.id, status });
 
-    // Sipariş hazırsa tüm kuryelere bildir
+    // Sipariş hazır → kurye otomatik ata
     if (status === 'ready') {
-      io.to('couriers').emit('order_ready', { id: order.id, restaurant_id: order.restaurant_id });
+      const courier = await assignCourier(id, order.restaurant_id);
+      if (courier) {
+        // Atanan kuryeye özel bildirim
+        io.to(`courier_${courier.id}`).emit('order_assigned', {
+          orderId: order.id,
+          courierName: courier.name,
+        });
+        // Esnafa atama bildir
+        io.to(`restaurant_${order.restaurant_id}`).emit('courier_assigned', {
+          orderId: order.id,
+          courierName: courier.name,
+        });
+      } else {
+        // Müsait kurye yoksa genel havuza düşür
+        io.to('couriers').emit('order_ready', { id: order.id });
+      }
     }
 
     res.json(order);

@@ -6,7 +6,7 @@ const statusLabels = {
   pending: { label: 'Bekliyor', color: 'bg-yellow-100 text-yellow-700' },
   confirmed: { label: 'Onaylandı', color: 'bg-blue-100 text-blue-700' },
   preparing: { label: 'Hazırlanıyor', color: 'bg-orange-100 text-orange-700' },
-  ready: { label: 'Hazır', color: 'bg-purple-100 text-purple-700' },
+  ready: { label: 'Hazırlanıyor', color: 'bg-orange-100 text-orange-700' },
   on_the_way: { label: 'Yolda 🛵', color: 'bg-indigo-100 text-indigo-700' },
   delivered: { label: 'Teslim Edildi ✓', color: 'bg-green-100 text-green-700' },
   cancelled: { label: 'İptal Edildi', color: 'bg-red-100 text-red-700' },
