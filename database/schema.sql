@@ -24,6 +24,16 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Kullanıcı Adresleri (çoklu adres desteği)
+CREATE TABLE IF NOT EXISTS addresses (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(50) NOT NULL,
+  address TEXT NOT NULL,
+  is_default BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Restoranlar / İşletmeler
 CREATE TABLE IF NOT EXISTS restaurants (
   id SERIAL PRIMARY KEY,
@@ -104,7 +114,7 @@ INSERT INTO municipalities (name, primary_color, secondary_color)
 VALUES ('Denizli Büyükşehir Belediyesi', '#E63946', '#1D3557')
 ON CONFLICT DO NOTHING;
 
--- Örnek Veri: Admin Kullanıcı (şifre: admin123)
+-- Örnek Veri: Admin Kullanıcı (şifre: password)
 INSERT INTO users (municipality_id, name, email, password, role)
 VALUES (1, 'Süper Admin', 'admin@belediye.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin')
 ON CONFLICT DO NOTHING;
