@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS restaurants (
   phone VARCHAR(20),
   courier_type VARCHAR(20) DEFAULT 'own' CHECK (courier_type IN ('own', 'municipality', 'both')),
   commission_rate DECIMAL(5,2) DEFAULT 10.00,
-  is_active BOOLEAN DEFAULT true,
+  is_active BOOLEAN DEFAULT false,
+  approval_status VARCHAR(20) DEFAULT 'pending' CHECK (approval_status IN ('pending', 'approved', 'rejected')),
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -106,6 +107,18 @@ CREATE TABLE IF NOT EXISTS merchant_earnings (
   net_amount DECIMAL(10,2) NOT NULL,
   is_paid BOOLEAN DEFAULT false,
   paid_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Değerlendirmeler
+CREATE TABLE IF NOT EXISTS reviews (
+  id SERIAL PRIMARY KEY,
+  order_id INTEGER REFERENCES orders(id) UNIQUE,
+  customer_id INTEGER REFERENCES users(id),
+  restaurant_id INTEGER REFERENCES restaurants(id),
+  rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment TEXT,
+  is_visible BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
