@@ -125,7 +125,14 @@ export default function OrderManager({ restaurantId }) {
                 </div>
                 {order.notes && <p className="text-xs text-gray-400 italic mb-1">Not: {order.notes}</p>}
                 {order.courier_name && (
-                  <p className="text-xs text-indigo-600 mb-1">🛵 Kurye: <span className="font-medium">{order.courier_name}</span></p>
+                  <p className="text-xs text-indigo-600 mb-1">
+                    🛵 Kurye: <span className="font-medium">{order.courier_name}</span>
+                    {order.courier_phone && (
+                      <a href={`tel:${order.courier_phone}`} className="ml-2 underline hover:text-indigo-800">
+                        {order.courier_phone}
+                      </a>
+                    )}
+                  </p>
                 )}
                 {order.status === 'ready' && !order.courier_name && (
                   <p className="text-xs text-orange-500 mb-1">⏳ Kurye atanıyor...</p>

@@ -1,5 +1,5 @@
 let audioCtx = null;
-let audioUnlocked = false;
+let audioUnlocked = localStorage.getItem('sound_enabled') === 'true';
 
 const getCtx = () => {
   if (!audioCtx) {
@@ -13,11 +13,17 @@ export const isAudioUnlocked = () => audioUnlocked;
 export const unlockAudio = () => {
   try {
     const ctx = getCtx();
-    ctx.resume().then(() => { audioUnlocked = true; });
+    ctx.resume().then(() => {
+      audioUnlocked = true;
+      localStorage.setItem('sound_enabled', 'true');
+    });
   } catch {}
 };
 
-export const disableAudio = () => { audioUnlocked = false; };
+export const disableAudio = () => {
+  audioUnlocked = false;
+  localStorage.setItem('sound_enabled', 'false');
+};
 
 export const playBeep = () => {
   if (!audioUnlocked) return;

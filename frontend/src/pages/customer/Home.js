@@ -1,39 +1,126 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+
+const CATEGORIES = [
+  { label: 'Tümü',       value: '',          icon: '🍽️' },
+  { label: 'Kahvaltı',   value: 'kahvaltı',  icon: '🥗' },
+  { label: 'Yemek',      value: 'yemek',     icon: '🍲' },
+  { label: 'Izgara',     value: 'ızgara',    icon: '🥩' },
+  { label: 'Pide & Pizza', value: 'pide',    icon: '🍕' },
+  { label: 'Tatlı',      value: 'tatlı',     icon: '🍰' },
+  { label: 'İçecek',     value: 'içecek',    icon: '☕' },
+  { label: 'Börek',      value: 'börek',     icon: '🥐' },
+];
 
 export default function Home() {
+  const { user } = useAuth();
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('');
+  const [searchInput, setSearchInput] = useState('');
 
-  useEffect(() => {
-    api.get('/restaurants')
+  const fetchRestaurants = useCallback((s, c) => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (s) params.append('search', s);
+    if (c) params.append('category', c);
+    api.get(`/restaurants?${params}`)
       .then(res => setRestaurants(res.data))
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="text-center mt-20 text-gray-500">Yükleniyor...</div>;
+  useEffect(() => { fetchRestaurants(search, category); }, [search, category]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setSearch(searchInput);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearch('');
+  };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Restoranlar</h1>
-      {restaurants.length === 0 ? (
-        <div className="text-center text-gray-500 mt-20">
-          <p className="text-4xl mb-3">🍽️</p>
-          <p>Henüz kayıtlı işletme bulunmuyor.</p>
+    <div className="max-w-5xl mx-auto px-4 py-6 pb-24">
+      {/* Hoşgeldin */}
+      <div className="mb-5">
+        <h1 className="text-xl font-bold text-gray-800">Merhaba, {user?.name?.split(' ')[0]} 👋</h1>
+        <p className="text-sm text-gray-500">Ne yemek istersiniz?</p>
+      </div>
+
+      {/* Arama */}
+      <form onSubmit={handleSearch} className="flex gap-2 mb-5">
+        <div className="flex-1 relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+          <input
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            placeholder="İşletme veya yemek ara..."
+            className="w-full border border-gray-300 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+          />
+          {searchInput && (
+            <button type="button" onClick={handleClearSearch}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">✕</button>
+          )}
+        </div>
+        <button type="submit"
+          className="bg-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-red-700 transition">
+          Ara
+        </button>
+      </form>
+
+      {/* Kategori Filtreleri */}
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-5 scrollbar-hide">
+        {CATEGORIES.map(c => (
+          <button key={c.value} onClick={() => setCategory(c.value === category ? '' : c.value)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition shrink-0 ${
+              category === c.value
+                ? 'bg-red-600 text-white shadow-sm'
+                : 'bg-white border border-gray-200 text-gray-600 hover:border-red-300'
+            }`}>
+            <span>{c.icon}</span>
+            {c.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Aktif filtre bilgisi */}
+      {(search || category) && (
+        <div className="flex items-center gap-2 mb-4">
+          <p className="text-sm text-gray-500">
+            {[search && `"${search}"`, category && CATEGORIES.find(c => c.value === category)?.label]
+              .filter(Boolean).join(' · ')} için sonuçlar
+          </p>
+          <button onClick={() => { setSearch(''); setSearchInput(''); setCategory(''); }}
+            className="text-xs text-red-500 hover:underline">Temizle</button>
+        </div>
+      )}
+
+      {/* Restoran Listesi */}
+      {loading ? (
+        <div className="text-center mt-16 text-gray-500">Yükleniyor...</div>
+      ) : restaurants.length === 0 ? (
+        <div className="text-center mt-16 text-gray-400">
+          <p className="text-5xl mb-3">🍽️</p>
+          <p className="font-medium text-gray-500">Sonuç bulunamadı</p>
+          <p className="text-sm mt-1">Farklı bir arama deneyin</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {restaurants.map(r => (
             <Link key={r.id} to={`/restaurant/${r.id}`}
-              className="bg-white rounded-xl shadow hover:shadow-md transition overflow-hidden border border-gray-100">
-              <div className="h-32 bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center">
+              className="bg-white rounded-2xl shadow-sm hover:shadow-md transition overflow-hidden border border-gray-100 active:scale-95">
+              <div className="h-32 bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center">
                 <span className="text-5xl">🍴</span>
               </div>
               <div className="p-4">
-                <h3 className="font-semibold text-gray-800">{r.name}</h3>
-                <p className="text-sm text-gray-500 mt-1">{r.description || 'Açıklama yok'}</p>
+                <h3 className="font-semibold text-gray-800 mb-1">{r.name}</h3>
+                <p className="text-xs text-gray-400 line-clamp-2">{r.description || 'Lezzetli yemekler sizi bekliyor'}</p>
                 <p className="text-xs text-gray-400 mt-2">📍 {r.address}</p>
               </div>
             </Link>

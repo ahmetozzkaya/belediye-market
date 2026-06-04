@@ -22,6 +22,7 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/menu', require('./routes/menu'));
 app.use('/api/addresses', require('./routes/addresses'));
+app.use('/api/reviews', require('./routes/reviews'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'Sunucu çalışıyor' }));
 

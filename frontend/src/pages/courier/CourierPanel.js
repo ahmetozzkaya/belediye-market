@@ -55,9 +55,9 @@ export default function CourierPanel() {
   const completed = orders.filter(o => o.status === 'delivered');
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
+    <div className="max-w-2xl mx-auto px-4 py-8 pb-24">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Kurye Paneli</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Teslimatlar</h1>
         <SoundToggle />
       </div>
 
@@ -93,7 +93,15 @@ export default function CourierPanel() {
                 </span>
               </div>
               <div className="text-sm space-y-1 text-gray-600">
-                <p>🏪 <span className="font-medium">Restoran:</span> {order.restaurant_address}</p>
+                <p>
+                  🏪 <span className="font-medium">Restoran:</span> {order.restaurant_name}
+                  {order.restaurant_phone && (
+                    <a href={`tel:${order.restaurant_phone}`} className="ml-2 text-indigo-600 underline hover:text-indigo-800">
+                      {order.restaurant_phone}
+                    </a>
+                  )}
+                </p>
+                <p>📍 <span className="font-medium">Restoran Adresi:</span> {order.restaurant_address}</p>
                 <p>👤 <span className="font-medium">Müşteri:</span> {order.customer_name} — {order.customer_phone}</p>
                 <p>📍 <span className="font-medium">Teslimat:</span> {order.delivery_address}</p>
               </div>

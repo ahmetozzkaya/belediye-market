@@ -3,7 +3,7 @@ const auth = require('../middleware/auth');
 const {
   getMyRestaurant, createRestaurant, updateRestaurant,
   getCategories, createCategory, deleteCategory,
-  createItem, updateItem, deleteItem
+  createItem, updateItem, deleteItem, getEarnings
 } = require('../controllers/menuController');
 
 router.get('/restaurant', auth(['merchant']), getMyRestaurant);
@@ -17,5 +17,7 @@ router.delete('/categories/:id', auth(['merchant']), deleteCategory);
 router.post('/items', auth(['merchant']), createItem);
 router.put('/items/:id', auth(['merchant']), updateItem);
 router.delete('/items/:id', auth(['merchant']), deleteItem);
+
+router.get('/earnings', auth(['merchant']), getEarnings);
 
 module.exports = router;

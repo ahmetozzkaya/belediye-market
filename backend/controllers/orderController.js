@@ -80,14 +80,14 @@ const getRestaurantOrders = async (req, res) => {
 
     const result = await pool.query(
       `SELECT o.*, u.name as customer_name, u.phone as customer_phone,
-       c.name as courier_name,
+       c.name as courier_name, c.phone as courier_phone,
        json_agg(json_build_object('name', oi.name, 'quantity', oi.quantity, 'unit_price', oi.unit_price)) as items
        FROM orders o
        JOIN users u ON o.customer_id = u.id
        LEFT JOIN users c ON o.courier_id = c.id
        JOIN order_items oi ON o.id = oi.order_id
        WHERE o.restaurant_id = $1
-       GROUP BY o.id, u.name, u.phone, c.name ORDER BY o.created_at DESC`,
+       GROUP BY o.id, u.name, u.phone, c.name, c.phone ORDER BY o.created_at DESC`,
       [restaurant.rows[0].id]
     );
     res.json(result.rows);
@@ -172,7 +172,7 @@ const updateStatus = async (req, res) => {
 const getCourierOrders = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT o.*, r.name as restaurant_name, r.address as restaurant_address,
+      `SELECT o.*, r.name as restaurant_name, r.address as restaurant_address, r.phone as restaurant_phone,
        u.name as customer_name, u.phone as customer_phone
        FROM orders o
        JOIN restaurants r ON o.restaurant_id = r.id

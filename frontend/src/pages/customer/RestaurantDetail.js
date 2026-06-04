@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import StarRating from '../../components/StarRating';
 
 const LAST_ADDRESS_KEY = 'lastSelectedAddressId';
 
@@ -10,6 +11,7 @@ export default function RestaurantDetail() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [restaurant, setRestaurant] = useState(null);
+  const [reviewData, setReviewData] = useState({ reviews: [], average: null, count: 0 });
   const [cart, setCart] = useState([]);
   const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
@@ -21,6 +23,7 @@ export default function RestaurantDetail() {
 
   useEffect(() => {
     api.get(`/restaurants/${id}`).then(res => setRestaurant(res.data)).catch(console.error);
+    api.get(`/reviews/restaurant/${id}`).then(res => setReviewData(res.data)).catch(() => {});
     api.get('/addresses').then(res => {
       const addrs = res.data;
       setAddresses(addrs);
@@ -107,7 +110,17 @@ export default function RestaurantDetail() {
       {/* Menü */}
       <div className="lg:col-span-2">
         <h1 className="text-2xl font-bold text-gray-800 mb-1">{restaurant.name}</h1>
-        <p className="text-gray-500 mb-6">📍 {restaurant.address}</p>
+        <div className="flex items-center gap-3 mb-1">
+          <p className="text-gray-500 text-sm">📍 {restaurant.address}</p>
+          {reviewData.average && (
+            <div className="flex items-center gap-1">
+              <StarRating rating={Math.round(reviewData.average)} size="sm" />
+              <span className="text-sm font-semibold text-gray-700">{reviewData.average}</span>
+              <span className="text-xs text-gray-400">({reviewData.count} değerlendirme)</span>
+            </div>
+          )}
+        </div>
+        <div className="mb-6" />
         {restaurant.menu?.map(cat => (
           <div key={cat.id} className="mb-6">
             <h3 className="text-lg font-semibold text-gray-700 mb-3 border-b pb-1">{cat.name}</h3>
@@ -132,6 +145,24 @@ export default function RestaurantDetail() {
             </div>
           </div>
         ))}
+      {/* Değerlendirmeler */}
+      {reviewData.reviews.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold text-gray-700 mb-3">Değerlendirmeler</h3>
+          <div className="space-y-3">
+            {reviewData.reviews.map(r => (
+              <div key={r.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-medium text-sm text-gray-800">{r.customer_name}</span>
+                  <span className="text-xs text-gray-400">{new Date(r.created_at).toLocaleDateString('tr-TR')}</span>
+                </div>
+                <StarRating rating={r.rating} size="sm" />
+                {r.comment && <p className="text-sm text-gray-600 mt-1">{r.comment}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       </div>
 
       {/* Sepet */}

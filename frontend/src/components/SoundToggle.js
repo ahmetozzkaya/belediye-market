@@ -1,8 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { unlockAudio, disableAudio, isAudioUnlocked } from '../services/notify';
 
 export default function SoundToggle() {
   const [enabled, setEnabled] = useState(isAudioUnlocked());
+
+  useEffect(() => {
+    // Tercih açıksa ilk kullanıcı etkileşiminde AudioContext'i otomatik unlock et
+    if (isAudioUnlocked()) {
+      const unlock = () => { unlockAudio(); document.removeEventListener('click', unlock); };
+      document.addEventListener('click', unlock);
+      return () => document.removeEventListener('click', unlock);
+    }
+  }, []);
 
   const toggle = () => {
     if (enabled) {

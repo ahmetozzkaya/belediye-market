@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import CustomerNav from './components/CustomerNav';
+import CourierNav from './components/CourierNav';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Home from './pages/customer/Home';
@@ -10,6 +11,7 @@ import MyOrders from './pages/customer/MyOrders';
 import Profile from './pages/customer/Profile';
 import MerchantPanel from './pages/merchant/MerchantPanel';
 import CourierPanel from './pages/courier/CourierPanel';
+import CourierProfile from './pages/courier/CourierProfile';
 import AdminPanel from './pages/admin/AdminPanel';
 
 const roleHome = { customer: '/', merchant: '/merchant', courier: '/courier', admin: '/admin' };
@@ -31,18 +33,23 @@ const HomeRoute = () => {
 };
 
 const CUSTOMER_PATHS = ['/', '/orders', '/profile'];
+const COURIER_PATHS = ['/courier', '/courier/profile'];
 
 function AppRoutes() {
   const { user } = useAuth();
   const location = useLocation();
+
   const isCustomerPage = user?.role === 'customer' &&
     (CUSTOMER_PATHS.includes(location.pathname) || location.pathname.startsWith('/restaurant'));
-  const isAuthPage = ['/login', '/register'].includes(location.pathname);
+  const isCourierPage = user?.role === 'courier' &&
+    COURIER_PATHS.includes(location.pathname);
+
+  const showBottomNav = isCustomerPage || isCourierPage;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {!isCustomerPage && <Navbar />}
-      <div className={isCustomerPage ? 'pb-16' : ''}>
+      {!showBottomNav && <Navbar />}
+      <div className={showBottomNav ? 'pb-16' : ''}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -52,10 +59,12 @@ function AppRoutes() {
           <Route path="/profile" element={<PrivateRoute roles={['customer']}><Profile /></PrivateRoute>} />
           <Route path="/merchant" element={<PrivateRoute roles={['merchant']}><MerchantPanel /></PrivateRoute>} />
           <Route path="/courier" element={<PrivateRoute roles={['courier']}><CourierPanel /></PrivateRoute>} />
+          <Route path="/courier/profile" element={<PrivateRoute roles={['courier']}><CourierProfile /></PrivateRoute>} />
           <Route path="/admin" element={<PrivateRoute roles={['admin']}><AdminPanel /></PrivateRoute>} />
         </Routes>
       </div>
       {isCustomerPage && <CustomerNav />}
+      {isCourierPage && <CourierNav />}
     </div>
   );
 }

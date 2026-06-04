@@ -1,10 +1,26 @@
 const pool = require('../config/db');
 
 const getAll = async (req, res) => {
+  const { search, category } = req.query;
   try {
-    const result = await pool.query(
-      'SELECT r.*, u.name as owner_name FROM restaurants r JOIN users u ON r.owner_id = u.id WHERE r.is_active = true ORDER BY r.name'
-    );
+    let query = `
+      SELECT DISTINCT r.*, u.name as owner_name
+      FROM restaurants r
+      JOIN users u ON r.owner_id = u.id
+      LEFT JOIN menu_categories c ON c.restaurant_id = r.id
+      WHERE r.is_active = true AND r.approval_status = 'approved'
+    `;
+    const params = [];
+    if (search) {
+      params.push(`%${search}%`);
+      query += ` AND (r.name ILIKE $${params.length} OR r.description ILIKE $${params.length})`;
+    }
+    if (category) {
+      params.push(`%${category}%`);
+      query += ` AND c.name ILIKE $${params.length}`;
+    }
+    query += ' ORDER BY r.name';
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ message: 'Sunucu hatası', error: err.message });
