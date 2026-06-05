@@ -2,16 +2,22 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { getGradient, getCategoryEmoji } from '../../utils/restaurant';
 
 const CATEGORIES = [
-  { label: 'Tümü',       value: '',          icon: '🍽️' },
-  { label: 'Kahvaltı',   value: 'kahvaltı',  icon: '🥗' },
-  { label: 'Yemek',      value: 'yemek',     icon: '🍲' },
-  { label: 'Izgara',     value: 'ızgara',    icon: '🥩' },
-  { label: 'Pide & Pizza', value: 'pide',    icon: '🍕' },
-  { label: 'Tatlı',      value: 'tatlı',     icon: '🍰' },
-  { label: 'İçecek',     value: 'içecek',    icon: '☕' },
-  { label: 'Börek',      value: 'börek',     icon: '🥐' },
+  { label: 'Tümü',            value: '',               icon: '🍽️' },
+  { label: 'Kahvaltı',        value: 'Kahvaltı',       icon: '🥗' },
+  { label: 'Ev Yemeği',       value: 'Ev Yemeği',      icon: '🍲' },
+  { label: 'Izgara',          value: 'Izgara',         icon: '🥩' },
+  { label: 'Kebap',           value: 'Kebap',          icon: '🍢' },
+  { label: 'Köfte',           value: 'Köfte',          icon: '🍖' },
+  { label: 'Pide & Lahmacun', value: 'Pide & Lahmacun', icon: '🫓' },
+  { label: 'Pizza',           value: 'Pizza',          icon: '🍕' },
+  { label: 'Burger',          value: 'Burger',         icon: '🍔' },
+  { label: 'Börek',           value: 'Börek',          icon: '🥐' },
+  { label: 'Pastane',         value: 'Pastane',        icon: '🎂' },
+  { label: 'Tatlı',           value: 'Tatlı',          icon: '🍰' },
+  { label: 'Kafe',            value: 'Kafe',           icon: '☕' },
 ];
 
 export default function Home() {
@@ -115,12 +121,23 @@ export default function Home() {
           {restaurants.map(r => (
             <Link key={r.id} to={`/restaurant/${r.id}`}
               className="bg-white rounded-2xl shadow-sm hover:shadow-md transition overflow-hidden border border-gray-100 active:scale-95">
-              <div className="h-32 bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center">
-                <span className="text-5xl">🍴</span>
-              </div>
+              {r.logo_url ? (
+                <img src={r.logo_url} alt={r.name} className="h-32 w-full object-cover" />
+              ) : (
+                <div className={`h-32 bg-gradient-to-br ${getGradient(r.name)} flex items-center justify-center`}>
+                  <span className="text-5xl">{getCategoryEmoji(r.categories)}</span>
+                </div>
+              )}
               <div className="p-4">
                 <h3 className="font-semibold text-gray-800 mb-1">{r.name}</h3>
                 <p className="text-xs text-gray-400 line-clamp-2">{r.description || 'Lezzetli yemekler sizi bekliyor'}</p>
+                {r.categories?.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {r.categories.map(cat => (
+                      <span key={cat} className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full">{cat}</span>
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs text-gray-400 mt-2">📍 {r.address}</p>
               </div>
             </Link>

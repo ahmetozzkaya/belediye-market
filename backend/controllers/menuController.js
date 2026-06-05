@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { getMunicipalityId } = require('../config/municipality');
 
 const getMyRestaurant = async (req, res) => {
   try {
@@ -13,12 +14,14 @@ const getMyRestaurant = async (req, res) => {
 const createRestaurant = async (req, res) => {
   const { name, description, address, phone, courier_type = 'own' } = req.body;
   try {
+    const municipality_id = await getMunicipalityId();
     const existing = await pool.query('SELECT id FROM restaurants WHERE owner_id = $1', [req.user.id]);
     if (existing.rows.length) return res.status(400).json({ message: 'Zaten bir işletmeniz mevcut' });
 
+    const { categories = [] } = req.body;
     const result = await pool.query(
-      'INSERT INTO restaurants (municipality_id, owner_id, name, description, address, phone, courier_type, is_active, approval_status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
-      [1, req.user.id, name, description, address, phone, courier_type, false, 'pending']
+      'INSERT INTO restaurants (municipality_id, owner_id, name, description, address, phone, courier_type, categories, is_active, approval_status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
+      [municipality_id, req.user.id, name, description, address, phone, courier_type, categories, false, 'pending']
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -27,11 +30,11 @@ const createRestaurant = async (req, res) => {
 };
 
 const updateRestaurant = async (req, res) => {
-  const { name, description, address, phone, courier_type } = req.body;
+  const { name, description, address, phone, courier_type, categories = [] } = req.body;
   try {
     const result = await pool.query(
-      'UPDATE restaurants SET name=$1, description=$2, address=$3, phone=$4, courier_type=$5 WHERE owner_id=$6 RETURNING *',
-      [name, description, address, phone, courier_type, req.user.id]
+      'UPDATE restaurants SET name=$1, description=$2, address=$3, phone=$4, courier_type=$5, categories=$6 WHERE owner_id=$7 RETURNING *',
+      [name, description, address, phone, courier_type, categories, req.user.id]
     );
     if (!result.rows.length) return res.status(404).json({ message: 'İşletme bulunamadı' });
     res.json(result.rows[0]);
@@ -78,9 +81,36 @@ const createCategory = async (req, res) => {
   }
 };
 
+const updateCategory = async (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body;
+  try {
+    const restaurant = await pool.query('SELECT id FROM restaurants WHERE owner_id = $1', [req.user.id]);
+    if (!restaurant.rows.length) return res.status(403).json({ message: 'Yetkiniz yok' });
+
+    const result = await pool.query(
+      'UPDATE menu_categories SET name = $1 WHERE id = $2 AND restaurant_id = $3 RETURNING *',
+      [name, id, restaurant.rows[0].id]
+    );
+    if (!result.rows.length) return res.status(403).json({ message: 'Bu kategoriye erişim yetkiniz yok' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: 'Sunucu hatası', error: err.message });
+  }
+};
+
 const deleteCategory = async (req, res) => {
   const { id } = req.params;
   try {
+    const restaurant = await pool.query('SELECT id FROM restaurants WHERE owner_id = $1', [req.user.id]);
+    if (!restaurant.rows.length) return res.status(403).json({ message: 'Yetkiniz yok' });
+
+    const category = await pool.query(
+      'SELECT id FROM menu_categories WHERE id = $1 AND restaurant_id = $2',
+      [id, restaurant.rows[0].id]
+    );
+    if (!category.rows.length) return res.status(403).json({ message: 'Bu kategoriye erişim yetkiniz yok' });
+
     await pool.query('DELETE FROM menu_items WHERE category_id = $1', [id]);
     await pool.query('DELETE FROM menu_categories WHERE id = $1', [id]);
     res.json({ message: 'Kategori silindi' });
@@ -92,6 +122,15 @@ const deleteCategory = async (req, res) => {
 const createItem = async (req, res) => {
   const { category_id, name, description, price } = req.body;
   try {
+    const restaurant = await pool.query('SELECT id FROM restaurants WHERE owner_id = $1', [req.user.id]);
+    if (!restaurant.rows.length) return res.status(403).json({ message: 'Yetkiniz yok' });
+
+    const category = await pool.query(
+      'SELECT id FROM menu_categories WHERE id = $1 AND restaurant_id = $2',
+      [category_id, restaurant.rows[0].id]
+    );
+    if (!category.rows.length) return res.status(403).json({ message: 'Bu kategoriye erişim yetkiniz yok' });
+
     const result = await pool.query(
       'INSERT INTO menu_items (category_id, name, description, price) VALUES ($1,$2,$3,$4) RETURNING *',
       [category_id, name, description, price]
@@ -106,6 +145,15 @@ const updateItem = async (req, res) => {
   const { id } = req.params;
   const { name, description, price, is_available } = req.body;
   try {
+    const restaurant = await pool.query('SELECT id FROM restaurants WHERE owner_id = $1', [req.user.id]);
+    if (!restaurant.rows.length) return res.status(403).json({ message: 'Yetkiniz yok' });
+
+    const item = await pool.query(
+      'SELECT i.id FROM menu_items i JOIN menu_categories c ON i.category_id = c.id WHERE i.id = $1 AND c.restaurant_id = $2',
+      [id, restaurant.rows[0].id]
+    );
+    if (!item.rows.length) return res.status(403).json({ message: 'Bu ürüne erişim yetkiniz yok' });
+
     const result = await pool.query(
       'UPDATE menu_items SET name=$1, description=$2, price=$3, is_available=$4 WHERE id=$5 RETURNING *',
       [name, description, price, is_available, id]
@@ -119,6 +167,15 @@ const updateItem = async (req, res) => {
 const deleteItem = async (req, res) => {
   const { id } = req.params;
   try {
+    const restaurant = await pool.query('SELECT id FROM restaurants WHERE owner_id = $1', [req.user.id]);
+    if (!restaurant.rows.length) return res.status(403).json({ message: 'Yetkiniz yok' });
+
+    const item = await pool.query(
+      'SELECT i.id FROM menu_items i JOIN menu_categories c ON i.category_id = c.id WHERE i.id = $1 AND c.restaurant_id = $2',
+      [id, restaurant.rows[0].id]
+    );
+    if (!item.rows.length) return res.status(403).json({ message: 'Bu ürüne erişim yetkiniz yok' });
+
     await pool.query('DELETE FROM menu_items WHERE id = $1', [id]);
     res.json({ message: 'Ürün silindi' });
   } catch (err) {
@@ -132,9 +189,12 @@ const getEarnings = async (req, res) => {
     const restaurant = await pool.query('SELECT id FROM restaurants WHERE owner_id = $1', [req.user.id]);
     if (!restaurant.rows.length) return res.json({ orders: [], totals: { gross: 0, commission: 0, net: 0 } });
 
-    let filter = '';
+    let filterClause = '';
+    const params = [restaurant.rows[0].id];
+
     if (from && to) {
-      filter = `AND o.created_at >= '${from}' AND o.created_at <= '${to}'`;
+      params.push(from, to);
+      filterClause = `AND o.created_at >= $${params.length - 1} AND o.created_at <= $${params.length}`;
     } else {
       const periodFilter = {
         '1h':  `AND o.created_at >= NOW() - INTERVAL '1 hour'`,
@@ -145,7 +205,7 @@ const getEarnings = async (req, res) => {
         '30d': `AND o.created_at >= NOW() - INTERVAL '30 days'`,
         'all': '',
       };
-      filter = periodFilter[period] || '';
+      filterClause = periodFilter[period] || '';
     }
 
     const result = await pool.query(`
@@ -165,10 +225,10 @@ const getEarnings = async (req, res) => {
       JOIN order_items oi ON o.id = oi.order_id
       WHERE me.restaurant_id = $1
         AND o.status = 'delivered'
-        ${filter}
+        ${filterClause}
       GROUP BY o.id, o.created_at, o.delivered_at, me.gross_amount, me.commission, me.net_amount
       ORDER BY o.created_at DESC
-    `, [restaurant.rows[0].id]);
+    `, params);
 
     const totals = result.rows.reduce((acc, row) => ({
       gross: acc.gross + parseFloat(row.gross_amount),
@@ -182,4 +242,4 @@ const getEarnings = async (req, res) => {
   }
 };
 
-module.exports = { getMyRestaurant, createRestaurant, updateRestaurant, getCategories, createCategory, deleteCategory, createItem, updateItem, deleteItem, getEarnings };
+module.exports = { getMyRestaurant, createRestaurant, updateRestaurant, getCategories, createCategory, updateCategory, deleteCategory, createItem, updateItem, deleteItem, getEarnings };

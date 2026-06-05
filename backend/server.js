@@ -27,10 +27,14 @@ app.use('/api/reviews', require('./routes/reviews'));
 app.get('/api/health', (req, res) => res.json({ status: 'Sunucu çalışıyor' }));
 
 io.on('connection', (socket) => {
+  console.log(`[Socket] Bağlandı: ${socket.id}`);
   socket.on('join', (roomId) => {
     socket.join(roomId);
+    console.log(`[Socket] ${socket.id} → ${roomId} odasına katıldı`);
   });
-  socket.on('disconnect', () => {});
+  socket.on('disconnect', () => {
+    console.log(`[Socket] Ayrıldı: ${socket.id}`);
+  });
 });
 
 const PORT = process.env.PORT || 5001;

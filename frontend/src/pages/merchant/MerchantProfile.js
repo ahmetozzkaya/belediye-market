@@ -9,6 +9,9 @@ export default function MerchantProfile() {
   const [form, setForm] = useState({ name: user?.name || '', phone: user?.phone || '' });
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm: '' });
+  const [pwSuccess, setPwSuccess] = useState(false);
+  const [pwError, setPwError] = useState('');
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -19,6 +22,23 @@ export default function MerchantProfile() {
       setTimeout(() => setSuccess(false), 2000);
     } catch (err) {
       setError(err.response?.data?.message || 'Güncelleme başarısız');
+    }
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPwError('');
+    if (pwForm.new_password !== pwForm.confirm) return setPwError('Yeni şifreler eşleşmiyor');
+    try {
+      await api.put('/auth/change-password', {
+        current_password: pwForm.current_password,
+        new_password: pwForm.new_password,
+      });
+      setPwSuccess(true);
+      setPwForm({ current_password: '', new_password: '', confirm: '' });
+      setTimeout(() => setPwSuccess(false), 2000);
+    } catch (err) {
+      setPwError(err.response?.data?.message || 'Şifre değiştirilemedi');
     }
   };
 
@@ -59,6 +79,36 @@ export default function MerchantProfile() {
           <button type="submit"
             className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition font-medium text-sm">
             Kaydet
+          </button>
+        </form>
+      </div>
+
+      <div className="bg-white rounded-xl shadow p-5 mb-4">
+        <h2 className="font-semibold text-gray-800 mb-4">Şifre Değiştir</h2>
+        {pwError && <p className="bg-red-50 text-red-600 text-sm p-3 rounded mb-4">{pwError}</p>}
+        {pwSuccess && <p className="bg-green-50 text-green-600 text-sm p-3 rounded mb-4">✓ Şifre güncellendi</p>}
+        <form onSubmit={handlePasswordChange} className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Mevcut Şifre</label>
+            <input type="password" value={pwForm.current_password}
+              onChange={e => setPwForm({...pwForm, current_password: e.target.value})}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Yeni Şifre</label>
+            <input type="password" value={pwForm.new_password}
+              onChange={e => setPwForm({...pwForm, new_password: e.target.value})}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Yeni Şifre (Tekrar)</label>
+            <input type="password" value={pwForm.confirm}
+              onChange={e => setPwForm({...pwForm, confirm: e.target.value})}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+          </div>
+          <button type="submit"
+            className="w-full bg-gray-800 text-white py-2 rounded-lg hover:bg-gray-900 transition font-medium text-sm">
+            Şifreyi Güncelle
           </button>
         </form>
       </div>

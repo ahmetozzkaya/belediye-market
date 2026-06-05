@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Home from './pages/customer/Home';
 import RestaurantDetail from './pages/customer/RestaurantDetail';
 import MyOrders from './pages/customer/MyOrders';
+import OrderDetail from './pages/customer/OrderDetail';
 import Profile from './pages/customer/Profile';
 import MerchantPanel from './pages/merchant/MerchantPanel';
 import CourierPanel from './pages/courier/CourierPanel';
@@ -33,6 +34,7 @@ const HomeRoute = () => {
 };
 
 const CUSTOMER_PATHS = ['/', '/orders', '/profile'];
+// order detail path'i dinamik, startsWith ile kontrol ediliyor
 const COURIER_PATHS = ['/courier', '/courier/profile'];
 
 function AppRoutes() {
@@ -40,7 +42,9 @@ function AppRoutes() {
   const location = useLocation();
 
   const isCustomerPage = user?.role === 'customer' &&
-    (CUSTOMER_PATHS.includes(location.pathname) || location.pathname.startsWith('/restaurant'));
+    (CUSTOMER_PATHS.includes(location.pathname) ||
+     location.pathname.startsWith('/restaurant') ||
+     location.pathname.startsWith('/orders/'));
   const isCourierPage = user?.role === 'courier' &&
     COURIER_PATHS.includes(location.pathname);
 
@@ -56,6 +60,7 @@ function AppRoutes() {
           <Route path="/" element={<HomeRoute />} />
           <Route path="/restaurant/:id" element={<PrivateRoute roles={['customer']}><RestaurantDetail /></PrivateRoute>} />
           <Route path="/orders" element={<PrivateRoute roles={['customer']}><MyOrders /></PrivateRoute>} />
+          <Route path="/orders/:id" element={<PrivateRoute roles={['customer']}><OrderDetail /></PrivateRoute>} />
           <Route path="/profile" element={<PrivateRoute roles={['customer']}><Profile /></PrivateRoute>} />
           <Route path="/merchant" element={<PrivateRoute roles={['merchant']}><MerchantPanel /></PrivateRoute>} />
           <Route path="/courier" element={<PrivateRoute roles={['courier']}><CourierPanel /></PrivateRoute>} />

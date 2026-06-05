@@ -3,7 +3,7 @@ const auth = require('../middleware/auth');
 const {
   getStats, getUsers, toggleUser, getMunicipality, updateMunicipality,
   getRestaurants, approveRestaurant, rejectRestaurant, toggleRestaurant,
-  getCommissionReport, getCouriers,
+  getCommissionReport, getCouriers, getOrders, updateCommissionRate,
 } = require('../controllers/adminController');
 
 router.get('/stats', auth(['admin']), getStats);
@@ -16,7 +16,9 @@ router.get('/restaurants', auth(['admin']), getRestaurants);
 router.patch('/restaurants/:id/approve', auth(['admin']), approveRestaurant);
 router.patch('/restaurants/:id/reject', auth(['admin']), rejectRestaurant);
 router.patch('/restaurants/:id/toggle', auth(['admin']), toggleRestaurant);
+router.put('/restaurants/:id/commission', auth(['admin']), updateCommissionRate);
 
+router.get('/orders', auth(['admin']), getOrders);
 router.get('/commission', auth(['admin']), getCommissionReport);
 router.get('/couriers', auth(['admin']), getCouriers);
 

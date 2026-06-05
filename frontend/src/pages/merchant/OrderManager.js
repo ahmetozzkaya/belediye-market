@@ -22,18 +22,34 @@ const nextStatus = {
   preparing: { status: 'ready', label: 'Hazır' },
 };
 
+const PAGE_SIZE = 20;
+
 export default function OrderManager({ restaurantId }) {
-  const [orders, setOrders] = useState([]);
+  const [activeOrders, setActiveOrders] = useState([]);
+  const [completedOrders, setCompletedOrders] = useState([]);
+  const [completedTotal, setCompletedTotal] = useState(0);
+  const [completedPage, setCompletedPage] = useState(0);
   const [tab, setTab] = useState('active');
   const [loading, setLoading] = useState(true);
   const { alertState, trigger, dismiss } = useOrderAlert();
 
-  const fetchOrders = () => {
-    api.get('/orders/restaurant')
-      .then(res => setOrders(Array.isArray(res.data) ? res.data : []))
-      .catch(() => setOrders([]))
+  const fetchActive = () => {
+    api.get('/orders/restaurant?status_group=active')
+      .then(res => setActiveOrders(res.data.orders || []))
+      .catch(() => setActiveOrders([]))
       .finally(() => setLoading(false));
   };
+
+  const fetchCompleted = (p = completedPage) => {
+    api.get(`/orders/restaurant?status_group=completed&limit=${PAGE_SIZE}&offset=${p * PAGE_SIZE}`)
+      .then(res => {
+        setCompletedOrders(res.data.orders || []);
+        setCompletedTotal(res.data.total || 0);
+      })
+      .catch(() => {});
+  };
+
+  const fetchOrders = () => { fetchActive(); fetchCompleted(); };
 
   useEffect(() => {
     fetchOrders();
@@ -74,9 +90,8 @@ export default function OrderManager({ restaurantId }) {
     }
   };
 
-  const active = orders.filter(o => !['delivered', 'cancelled'].includes(o.status));
-  const completed = orders.filter(o => ['delivered', 'cancelled'].includes(o.status));
-  const displayed = tab === 'active' ? active : completed;
+  const displayed = tab === 'active' ? activeOrders : completedOrders;
+  const completedPages = Math.ceil(completedTotal / PAGE_SIZE);
 
   if (loading) return <div className="text-center py-10 text-gray-500">Yükleniyor...</div>;
 
@@ -87,11 +102,11 @@ export default function OrderManager({ restaurantId }) {
       <div className="flex gap-2 mb-4 items-center">
         <button onClick={() => setTab('active')}
           className={`px-4 py-2 rounded-lg font-medium text-sm transition ${tab === 'active' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-          Aktif {active.length > 0 && <span className="ml-1 bg-white text-red-600 text-xs px-1.5 py-0.5 rounded-full">{active.length}</span>}
+          Aktif {activeOrders.length > 0 && <span className="ml-1 bg-white text-red-600 text-xs px-1.5 py-0.5 rounded-full">{activeOrders.length}</span>}
         </button>
-        <button onClick={() => setTab('completed')}
+        <button onClick={() => { setTab('completed'); fetchCompleted(completedPage); }}
           className={`px-4 py-2 rounded-lg font-medium text-sm transition ${tab === 'completed' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-          Tamamlanan ({completed.length})
+          Tamamlanan ({completedTotal})
         </button>
         <button onClick={fetchOrders} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 hover:bg-gray-100 rounded-lg transition">
           ↻ Yenile
@@ -107,6 +122,7 @@ export default function OrderManager({ restaurantId }) {
       ) : (
         <div className="space-y-3">
           {displayed.map(order => {
+
             const s = statusLabels[order.status] || { label: order.status, color: 'bg-gray-100 text-gray-700' };
             const next = nextStatus[order.status];
             return (
@@ -158,6 +174,20 @@ export default function OrderManager({ restaurantId }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {tab === 'completed' && completedPages > 1 && (
+        <div className="flex justify-center items-center gap-3 mt-6">
+          <button onClick={() => { setCompletedPage(p => p - 1); fetchCompleted(completedPage - 1); }} disabled={completedPage === 0}
+            className="px-4 py-2 rounded-lg text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 transition">
+            ← Önceki
+          </button>
+          <span className="text-sm text-gray-500">{completedPage + 1} / {completedPages}</span>
+          <button onClick={() => { setCompletedPage(p => p + 1); fetchCompleted(completedPage + 1); }} disabled={completedPage >= completedPages - 1}
+            className="px-4 py-2 rounded-lg text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 transition">
+            Sonraki →
+          </button>
         </div>
       )}
     </div>

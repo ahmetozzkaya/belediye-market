@@ -2,7 +2,7 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const {
   getMyRestaurant, createRestaurant, updateRestaurant,
-  getCategories, createCategory, deleteCategory,
+  getCategories, createCategory, updateCategory, deleteCategory,
   createItem, updateItem, deleteItem, getEarnings
 } = require('../controllers/menuController');
 
@@ -12,6 +12,7 @@ router.put('/restaurant', auth(['merchant']), updateRestaurant);
 
 router.get('/categories', auth(['merchant']), getCategories);
 router.post('/categories', auth(['merchant']), createCategory);
+router.put('/categories/:id', auth(['merchant']), updateCategory);
 router.delete('/categories/:id', auth(['merchant']), deleteCategory);
 
 router.post('/items', auth(['merchant']), createItem);

@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import api from '../../services/api';
 
+const ALL_CATEGORIES = [
+  'Kahvaltı', 'Ev Yemeği', 'Izgara', 'Kebap', 'Köfte',
+  'Pide & Lahmacun', 'Pizza', 'Burger', 'Fast Food',
+  'Makarna', 'Börek', 'Pastane', 'Tatlı', 'Kafe', 'İçecek',
+];
+
 export default function RestaurantSetup({ existing, onCreated, onUpdated }) {
   const [form, setForm] = useState({
     name: existing?.name || '',
@@ -8,10 +14,20 @@ export default function RestaurantSetup({ existing, onCreated, onUpdated }) {
     address: existing?.address || '',
     phone: existing?.phone || '',
     courier_type: existing?.courier_type || 'own',
+    categories: existing?.categories || [],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  const toggleCategory = (cat) => {
+    setForm(prev => ({
+      ...prev,
+      categories: prev.categories.includes(cat)
+        ? prev.categories.filter(c => c !== cat)
+        : [...prev.categories, cat],
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,6 +88,24 @@ export default function RestaurantSetup({ existing, onCreated, onUpdated }) {
             <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})}
               placeholder="0555 123 45 67"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Kategoriler
+              <span className="text-xs text-gray-400 ml-1">(birden fazla seçilebilir)</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {ALL_CATEGORIES.map(cat => (
+                <button key={cat} type="button" onClick={() => toggleCategory(cat)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                    form.categories.includes(cat)
+                      ? 'bg-red-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}>
+                  {cat}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Kurye Tercihi</label>

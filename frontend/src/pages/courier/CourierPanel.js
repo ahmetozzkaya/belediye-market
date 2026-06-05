@@ -6,31 +6,41 @@ import { useOrderAlert } from '../../hooks/useOrderAlert';
 import OrderAlertBanner from '../../components/OrderAlertBanner';
 import SoundToggle from '../../components/SoundToggle';
 
+const PAGE_SIZE = 20;
+
 export default function CourierPanel() {
-  const [orders, setOrders] = useState([]);
+  const [activeOrders, setActiveOrders] = useState([]);
+  const [completedOrders, setCompletedOrders] = useState([]);
+  const [completedTotal, setCompletedTotal] = useState(0);
+  const [completedPage, setCompletedPage] = useState(0);
+  const [tab, setTab] = useState('active');
   const [loading, setLoading] = useState(true);
   const { alertState, trigger, dismiss } = useOrderAlert();
 
-  const fetchOrders = () => {
-    api.get('/orders/courier')
-      .then(res => setOrders(Array.isArray(res.data) ? res.data : []))
-      .catch(() => setOrders([]))
+  const fetchActive = () => {
+    api.get('/orders/courier?status_group=active')
+      .then(res => setActiveOrders(res.data.orders || []))
+      .catch(() => setActiveOrders([]))
       .finally(() => setLoading(false));
   };
 
+  const fetchCompleted = (p = completedPage) => {
+    api.get(`/orders/courier?status_group=completed&limit=${PAGE_SIZE}&offset=${p * PAGE_SIZE}`)
+      .then(res => {
+        setCompletedOrders(res.data.orders || []);
+        setCompletedTotal(res.data.total || 0);
+      })
+      .catch(() => {});
+  };
+
+  const fetchOrders = () => { fetchActive(); if (tab === 'completed') fetchCompleted(); };
+
   useEffect(() => {
-    fetchOrders();
+    fetchActive();
+    fetchCompleted(0);
 
-    socket.on('order_assigned', () => {
-      fetchOrders();
-      trigger();
-      playBeep();
-    });
-
-    // Müsait kurye yoksa genel havuzdan
-    socket.on('order_ready', () => {
-      fetchOrders();
-    });
+    socket.on('order_assigned', () => { fetchActive(); trigger(); playBeep(); });
+    socket.on('order_ready', () => { fetchActive(); });
 
     return () => {
       socket.off('order_assigned');
@@ -51,8 +61,7 @@ export default function CourierPanel() {
 
   if (loading) return <div className="text-center mt-20 text-gray-500">Yükleniyor...</div>;
 
-  const active = orders.filter(o => !['delivered', 'cancelled'].includes(o.status));
-  const completed = orders.filter(o => o.status === 'delivered');
+  const completedPages = Math.ceil(completedTotal / PAGE_SIZE);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 pb-24">
@@ -65,23 +74,39 @@ export default function CourierPanel() {
 
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-white rounded-xl shadow p-4 text-center">
-          <p className="text-3xl font-bold text-red-600">{active.length}</p>
+          <p className="text-3xl font-bold text-red-600">{activeOrders.length}</p>
           <p className="text-sm text-gray-500">Aktif Teslimat</p>
         </div>
         <div className="bg-white rounded-xl shadow p-4 text-center">
-          <p className="text-3xl font-bold text-green-600">{completed.length}</p>
+          <p className="text-3xl font-bold text-green-600">{completedTotal}</p>
           <p className="text-sm text-gray-500">Tamamlanan</p>
         </div>
       </div>
 
-      {orders.length === 0 ? (
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => setTab('active')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tab === 'active' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+          Aktif {activeOrders.length > 0 && <span className="ml-1 bg-white text-red-600 text-xs px-1.5 py-0.5 rounded-full">{activeOrders.length}</span>}
+        </button>
+        <button onClick={() => { setTab('completed'); fetchCompleted(completedPage); }}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tab === 'completed' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+          Tamamlanan ({completedTotal})
+        </button>
+      </div>
+
+      {tab === 'active' && activeOrders.length === 0 ? (
         <div className="text-center text-gray-500 mt-10">
           <p className="text-4xl mb-3">🚴</p>
           <p>Aktif sipariş bulunmuyor.</p>
         </div>
+      ) : tab === 'completed' && completedOrders.length === 0 ? (
+        <div className="text-center text-gray-400 mt-10">
+          <p className="text-3xl mb-2">📦</p>
+          <p>Tamamlanan teslimat yok.</p>
+        </div>
       ) : (
         <div className="space-y-4">
-          {orders.map(order => (
+          {(tab === 'active' ? activeOrders : completedOrders).map(order => (
             <div key={order.id} className="bg-white rounded-xl shadow p-4 border border-gray-100">
               <div className="flex justify-between items-start mb-3">
                 <div>
@@ -122,6 +147,20 @@ export default function CourierPanel() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {tab === 'completed' && completedPages > 1 && (
+        <div className="flex justify-center items-center gap-3 mt-6">
+          <button onClick={() => { setCompletedPage(p => p - 1); fetchCompleted(completedPage - 1); }} disabled={completedPage === 0}
+            className="px-4 py-2 rounded-lg text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 transition">
+            ← Önceki
+          </button>
+          <span className="text-sm text-gray-500">{completedPage + 1} / {completedPages}</span>
+          <button onClick={() => { setCompletedPage(p => p + 1); fetchCompleted(completedPage + 1); }} disabled={completedPage >= completedPages - 1}
+            className="px-4 py-2 rounded-lg text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 transition">
+            Sonraki →
+          </button>
         </div>
       )}
     </div>

@@ -12,6 +12,8 @@ export default function AdminRestaurants({ onPendingChange }) {
   const [restaurants, setRestaurants] = useState([]);
   const [filter, setFilter] = useState('pending');
   const [loading, setLoading] = useState(true);
+  const [editingCommission, setEditingCommission] = useState(null);
+  const [commissionValue, setCommissionValue] = useState('');
 
   const fetchRestaurants = (status = filter) => {
     setLoading(true);
@@ -44,6 +46,16 @@ export default function AdminRestaurants({ onPendingChange }) {
     if (!window.confirm(`${name} işletmesini ${isActive ? 'devre dışı bırakmak' : 'aktif etmek'} istediğinize emin misiniz?`)) return;
     await api.patch(`/admin/restaurants/${id}/toggle`);
     fetchRestaurants(filter);
+  };
+
+  const saveCommission = async (id) => {
+    const rate = parseFloat(commissionValue);
+    if (isNaN(rate) || rate < 0 || rate > 100) return alert('0-100 arasında bir değer girin');
+    try {
+      const res = await api.put(`/admin/restaurants/${id}/commission`, { commission_rate: rate });
+      setRestaurants(prev => prev.map(r => r.id === id ? { ...r, commission_rate: res.data.commission_rate } : r));
+      setEditingCommission(null);
+    } catch { alert('Güncellenemedi'); }
   };
 
   const fmt = (n) => parseFloat(n || 0).toFixed(2);
@@ -91,9 +103,29 @@ export default function AdminRestaurants({ onPendingChange }) {
                   </div>
                   <p className="text-sm text-gray-500">👤 {r.owner_name} — {r.owner_email} {r.owner_phone && `· ${r.owner_phone}`}</p>
                   <p className="text-sm text-gray-400">📍 {r.address}</p>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-gray-400 mt-1 flex items-center gap-1 flex-wrap">
                     Tamamlanan sipariş: <span className="font-medium text-gray-600">{r.total_orders}</span>
-                    {' · '}Komisyon: <span className="font-medium text-gray-600">%{parseFloat(r.commission_rate).toFixed(0)}</span>
+                    {' · '}Komisyon:{' '}
+                    {editingCommission === r.id ? (
+                      <>
+                        <input
+                          type="number" min="0" max="100" step="0.5"
+                          value={commissionValue}
+                          onChange={e => setCommissionValue(e.target.value)}
+                          className="w-16 border border-gray-300 rounded px-1 py-0.5 text-xs text-gray-800"
+                          autoFocus
+                        />
+                        <span>%</span>
+                        <button onClick={() => saveCommission(r.id)} className="text-green-600 hover:underline text-xs">Kaydet</button>
+                        <button onClick={() => setEditingCommission(null)} className="text-gray-400 hover:underline text-xs">İptal</button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-medium text-gray-600">%{parseFloat(r.commission_rate).toFixed(0)}</span>
+                        <button onClick={() => { setEditingCommission(r.id); setCommissionValue(parseFloat(r.commission_rate).toFixed(0)); }}
+                          className="text-blue-500 hover:underline text-xs">Düzenle</button>
+                      </>
+                    )}
                     {' · '}Kayıt: {new Date(r.created_at).toLocaleDateString('tr-TR')}
                   </p>
                 </div>

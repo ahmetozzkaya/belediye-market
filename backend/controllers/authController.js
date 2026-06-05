@@ -1,11 +1,13 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
+const { getMunicipalityId } = require('../config/municipality');
 require('dotenv').config();
 
 const register = async (req, res) => {
-  const { name, email, password, phone, address, role = 'customer', municipality_id = 1 } = req.body;
+  const { name, email, password, phone, address, role = 'customer' } = req.body;
   try {
+    const municipality_id = await getMunicipalityId();
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length) return res.status(400).json({ message: 'Bu email zaten kayıtlı' });
 
@@ -61,4 +63,22 @@ const updateProfile = async (req, res) => {
   }
 };
 
-module.exports = { register, login, me, updateProfile };
+const changePassword = async (req, res) => {
+  const { current_password, new_password } = req.body;
+  if (!new_password || new_password.length < 6) {
+    return res.status(400).json({ message: 'Yeni şifre en az 6 karakter olmalıdır' });
+  }
+  try {
+    const result = await pool.query('SELECT password FROM users WHERE id = $1', [req.user.id]);
+    const match = await bcrypt.compare(current_password, result.rows[0].password);
+    if (!match) return res.status(400).json({ message: 'Mevcut şifre hatalı' });
+
+    const hashed = await bcrypt.hash(new_password, 10);
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashed, req.user.id]);
+    res.json({ message: 'Şifre güncellendi' });
+  } catch (err) {
+    res.status(500).json({ message: 'Sunucu hatası' });
+  }
+};
+
+module.exports = { register, login, me, updateProfile, changePassword };

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import StarRating from '../../components/StarRating';
+import { getGradient, getCategoryEmoji, getItemEmoji } from '../../utils/restaurant';
 
 const LAST_ADDRESS_KEY = 'lastSelectedAddressId';
 
@@ -41,6 +42,14 @@ export default function RestaurantDetail() {
       const existing = prev.find(i => i.menu_item_id === item.id);
       if (existing) return prev.map(i => i.menu_item_id === item.id ? {...i, quantity: i.quantity + 1} : i);
       return [...prev, { menu_item_id: item.id, name: item.name, price: item.price, quantity: 1 }];
+    });
+  };
+
+  const decreaseFromCart = (itemId) => {
+    setCart(prev => {
+      const existing = prev.find(i => i.menu_item_id === itemId);
+      if (!existing || existing.quantity <= 1) return prev.filter(i => i.menu_item_id !== itemId);
+      return prev.map(i => i.menu_item_id === itemId ? {...i, quantity: i.quantity - 1} : i);
     });
   };
 
@@ -89,6 +98,8 @@ export default function RestaurantDetail() {
     }
   };
 
+  const cartQty = (itemId) => cart.find(i => i.menu_item_id === itemId)?.quantity || 0;
+
   if (!restaurant) return <div className="text-center mt-20 text-gray-500">Yükleniyor...</div>;
 
   if (success) return (
@@ -106,12 +117,27 @@ export default function RestaurantDetail() {
   );
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Menü */}
-      <div className="lg:col-span-2">
+    <div className="max-w-5xl mx-auto px-4 py-6">
+      {/* Geri butonu + Banner + Restoran bilgisi — full width, grid dışında */}
+      <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-600 text-sm mb-4 flex items-center gap-1 transition">
+        ← Geri
+      </button>
+
+      <div className="rounded-2xl overflow-hidden mb-5 shadow-sm">
+        {restaurant.logo_url ? (
+          <img src={restaurant.logo_url} alt={restaurant.name} className="w-full h-48 object-cover" />
+        ) : (
+          <div className={`h-48 bg-gradient-to-br ${getGradient(restaurant.name)} flex items-center justify-center`}>
+            <span className="text-8xl">{getCategoryEmoji(restaurant.categories)}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="mb-5">
         <h1 className="text-2xl font-bold text-gray-800 mb-1">{restaurant.name}</h1>
-        <div className="flex items-center gap-3 mb-1">
-          <p className="text-gray-500 text-sm">📍 {restaurant.address}</p>
+        {restaurant.description && <p className="text-sm text-gray-500 mb-2">{restaurant.description}</p>}
+        <div className="flex items-center gap-3 flex-wrap">
+          <p className="text-gray-400 text-sm">📍 {restaurant.address}</p>
           {reviewData.average && (
             <div className="flex items-center gap-1">
               <StarRating rating={Math.round(reviewData.average)} size="sm" />
@@ -120,22 +146,40 @@ export default function RestaurantDetail() {
             </div>
           )}
         </div>
-        <div className="mb-6" />
+      </div>
+
+      {/* Grid: menü + sepet — ikisi aynı hizadan başlar */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Menü */}
+      <div className="lg:col-span-2">
         {restaurant.menu?.map(cat => (
           <div key={cat.id} className="mb-6">
             <h3 className="text-lg font-semibold text-gray-700 mb-3 border-b pb-1">{cat.name}</h3>
             <div className="space-y-2">
               {cat.items?.filter(i => i.id).map(item => (
                 <div key={item.id} className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border border-gray-100">
-                  <div>
-                    <p className="font-medium text-gray-800">{item.name}</p>
-                    <p className="text-sm text-gray-500">{item.description}</p>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <span className="text-2xl shrink-0">{getItemEmoji(item.name)}</span>
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-800">{item.name}</p>
+                      {item.description && <p className="text-sm text-gray-500 truncate">{item.description}</p>}
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="font-semibold text-red-600">{parseFloat(item.price).toFixed(2)} ₺</span>
                     {item.is_available ? (
-                      <button onClick={() => addToCart(item)}
-                        className="bg-red-600 text-white w-8 h-8 rounded-full hover:bg-red-700 transition text-lg font-bold">+</button>
+                      cartQty(item.id) > 0 ? (
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => decreaseFromCart(item.id)}
+                            className="bg-red-100 text-red-600 w-7 h-7 rounded-full hover:bg-red-200 transition font-bold text-lg leading-none">−</button>
+                          <span className="w-5 text-center text-sm font-semibold text-gray-800">{cartQty(item.id)}</span>
+                          <button onClick={() => addToCart(item)}
+                            className="bg-red-600 text-white w-7 h-7 rounded-full hover:bg-red-700 transition font-bold text-lg leading-none">+</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => addToCart(item)}
+                          className="bg-red-600 text-white w-8 h-8 rounded-full hover:bg-red-700 transition text-lg font-bold">+</button>
+                      )
                     ) : (
                       <span className="text-xs text-gray-400">Mevcut değil</span>
                     )}
@@ -165,7 +209,7 @@ export default function RestaurantDetail() {
       )}
       </div>
 
-      {/* Sepet */}
+      {/* Sepet — menü ile aynı hizada başlar */}
       <div className="bg-white rounded-xl shadow p-4 h-fit sticky top-4">
         <h3 className="font-bold text-gray-800 mb-3">Sepet</h3>
         {cart.length === 0 ? (
@@ -174,10 +218,15 @@ export default function RestaurantDetail() {
           <>
             {cart.map(i => (
               <div key={i.menu_item_id} className="flex items-center justify-between text-sm mb-2">
-                <span>{i.name} x{i.quantity}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-red-600 font-medium">{(i.price * i.quantity).toFixed(2)} ₺</span>
-                  <button onClick={() => removeFromCart(i.menu_item_id)} className="text-gray-400 hover:text-red-500 text-xs">✕</button>
+                <span className="flex-1 text-gray-700 truncate mr-2">{i.name}</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button onClick={() => decreaseFromCart(i.menu_item_id)}
+                    className="text-red-400 hover:text-red-600 w-5 h-5 flex items-center justify-center rounded-full hover:bg-red-50 font-bold">−</button>
+                  <span className="w-4 text-center text-xs font-semibold">{i.quantity}</span>
+                  <button onClick={() => addToCart({ id: i.menu_item_id, name: i.name, price: i.price })}
+                    className="text-red-400 hover:text-red-600 w-5 h-5 flex items-center justify-center rounded-full hover:bg-red-50 font-bold">+</button>
+                  <span className="text-red-600 font-medium ml-1">{(i.price * i.quantity).toFixed(2)} ₺</span>
+                  <button onClick={() => removeFromCart(i.menu_item_id)} className="text-gray-300 hover:text-red-400 text-xs ml-1">✕</button>
                 </div>
               </div>
             ))}
@@ -238,12 +287,13 @@ export default function RestaurantDetail() {
             <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Not (isteğe bağlı)"
               className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 mb-2" />
 
-            <button onClick={placeOrder} disabled={ordering || (!selectedAddress && !showNewAddress)}
+            <button onClick={placeOrder} disabled={ordering || !selectedAddress || showNewAddress}
               className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition font-medium text-sm disabled:opacity-50">
-              {ordering ? 'Sipariş veriliyor...' : 'Sipariş Ver'}
+              {ordering ? 'Sipariş veriliyor...' : showNewAddress ? 'Önce adresi kaydedin' : 'Sipariş Ver'}
             </button>
           </>
         )}
+      </div>
       </div>
     </div>
   );

@@ -7,6 +7,8 @@ export default function MenuManager({ restaurant }) {
   const [addingItem, setAddingItem] = useState(null);
   const [itemForm, setItemForm] = useState({ name: '', description: '', price: '' });
   const [editingItem, setEditingItem] = useState(null);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [editingCatName, setEditingCatName] = useState('');
   const [loading, setLoading] = useState(true);
 
   const fetchMenu = () => {
@@ -27,6 +29,17 @@ export default function MenuManager({ restaurant }) {
       fetchMenu();
     } catch (err) {
       alert(err.response?.data?.message || 'Kategori eklenemedi');
+    }
+  };
+
+  const saveCategory = async (id) => {
+    if (!editingCatName.trim()) return;
+    try {
+      await api.put(`/menu/categories/${id}`, { name: editingCatName });
+      setEditingCategory(null);
+      fetchMenu();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Güncellenemedi');
     }
   };
 
@@ -108,12 +121,29 @@ export default function MenuManager({ restaurant }) {
             <div key={cat.id} className="bg-white rounded-xl shadow border border-gray-100">
               {/* Kategori Başlığı */}
               <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50 rounded-t-xl">
-                <h3 className="font-semibold text-gray-800">{cat.name}</h3>
+                {editingCategory === cat.id ? (
+                  <div className="flex items-center gap-2 flex-1 mr-2">
+                    <input autoFocus value={editingCatName}
+                      onChange={e => setEditingCatName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') saveCategory(cat.id); if (e.key === 'Escape') setEditingCategory(null); }}
+                      className="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 flex-1" />
+                    <button onClick={() => saveCategory(cat.id)} className="text-xs bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700 transition">Kaydet</button>
+                    <button onClick={() => setEditingCategory(null)} className="text-xs text-gray-500 px-2 hover:text-gray-700">İptal</button>
+                  </div>
+                ) : (
+                  <h3 className="font-semibold text-gray-800">{cat.name}</h3>
+                )}
                 <div className="flex gap-2">
                   <button onClick={() => { setAddingItem(cat.id); setItemForm({ name: '', description: '', price: '' }); }}
                     className="text-xs bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700 transition">
                     + Ürün Ekle
                   </button>
+                  {editingCategory !== cat.id && (
+                    <button onClick={() => { setEditingCategory(cat.id); setEditingCatName(cat.name); }}
+                      className="text-xs text-blue-500 hover:text-blue-700 px-2">
+                      Düzenle
+                    </button>
+                  )}
                   <button onClick={() => deleteCategory(cat.id)}
                     className="text-xs text-red-400 hover:text-red-600 px-2">
                     Sil

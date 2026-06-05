@@ -7,10 +7,12 @@ import AdminCouriers from './AdminCouriers';
 import AdminUsers from './AdminUsers';
 import AdminSettings from './AdminSettings';
 import AdminReviews from './AdminReviews';
+import AdminOrders from './AdminOrders';
 
 const TABS = [
   { key: 'stats',       label: 'Genel Bakış',      icon: '📊' },
   { key: 'restaurants', label: 'İşletmeler',        icon: '🏪' },
+  { key: 'orders',      label: 'Siparişler',        icon: '📦' },
   { key: 'commission',  label: 'Komisyon Raporu',   icon: '💰' },
   { key: 'couriers',    label: 'Kuryeler',          icon: '🛵' },
   { key: 'reviews',     label: 'Değerlendirmeler',  icon: '⭐' },
@@ -49,6 +51,7 @@ export default function AdminPanel() {
 
       {tab === 'stats'       && <AdminStats />}
       {tab === 'restaurants' && <AdminRestaurants onPendingChange={setPendingCount} />}
+      {tab === 'orders'      && <AdminOrders />}
       {tab === 'commission'  && <AdminCommission />}
       {tab === 'couriers'    && <AdminCouriers />}
       {tab === 'reviews'     && <AdminReviews />}

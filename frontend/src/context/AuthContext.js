@@ -11,6 +11,9 @@ export const AuthProvider = ({ children }) => {
   const connectSocket = (userData) => {
     const joinRooms = () => {
       socket.emit('join', `customer_${userData.id}`);
+      if (userData.role === 'merchant') {
+        socket.emit('join', `merchant_${userData.id}`);
+      }
       if (userData.role === 'courier') {
         socket.emit('join', 'couriers');
         socket.emit('join', `courier_${userData.id}`);

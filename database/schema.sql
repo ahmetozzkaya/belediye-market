@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS restaurants (
   logo_url TEXT,
   address TEXT,
   phone VARCHAR(20),
+  categories TEXT[] DEFAULT '{}',
   courier_type VARCHAR(20) DEFAULT 'own' CHECK (courier_type IN ('own', 'municipality', 'both')),
   commission_rate DECIMAL(5,2) DEFAULT 10.00,
   is_active BOOLEAN DEFAULT false,

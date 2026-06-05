@@ -1,13 +1,13 @@
 const pool = require('../config/db');
+const { getMunicipalityId } = require('../config/municipality');
 
 const getAll = async (req, res) => {
   const { search, category } = req.query;
   try {
     let query = `
-      SELECT DISTINCT r.*, u.name as owner_name
+      SELECT r.*, u.name as owner_name
       FROM restaurants r
       JOIN users u ON r.owner_id = u.id
-      LEFT JOIN menu_categories c ON c.restaurant_id = r.id
       WHERE r.is_active = true AND r.approval_status = 'approved'
     `;
     const params = [];
@@ -16,8 +16,8 @@ const getAll = async (req, res) => {
       query += ` AND (r.name ILIKE $${params.length} OR r.description ILIKE $${params.length})`;
     }
     if (category) {
-      params.push(`%${category}%`);
-      query += ` AND c.name ILIKE $${params.length}`;
+      params.push(category);
+      query += ` AND $${params.length} = ANY(r.categories)`;
     }
     query += ' ORDER BY r.name';
     const result = await pool.query(query, params);
@@ -44,8 +44,9 @@ const getOne = async (req, res) => {
 };
 
 const create = async (req, res) => {
-  const { name, description, address, phone, courier_type, commission_rate, municipality_id = 1 } = req.body;
+  const { name, description, address, phone, courier_type, commission_rate } = req.body;
   try {
+    const municipality_id = await getMunicipalityId();
     const result = await pool.query(
       'INSERT INTO restaurants (municipality_id, owner_id, name, description, address, phone, courier_type, commission_rate) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
       [municipality_id, req.user.id, name, description, address, phone, courier_type, commission_rate]
