@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const pool = require('../config/db');
 const { getMunicipalityId } = require('../config/municipality');
 require('dotenv').config();
@@ -81,4 +82,52 @@ const changePassword = async (req, res) => {
   }
 };
 
-module.exports = { register, login, me, updateProfile, changePassword };
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  try {
+    const result = await pool.query('SELECT id, name FROM users WHERE email = $1 AND is_active = true', [email]);
+    // Her durumda aynı mesajı dön (email numaralandırma saldırısını engeller)
+    if (!result.rows.length) return res.json({ message: 'E-posta adresinize şifre sıfırlama bağlantısı gönderildi.' });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 saat
+
+    await pool.query(
+      'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE id = $3',
+      [token, expires, result.rows[0].id]
+    );
+
+    const resetUrl = `http://localhost:3000/reset-password?token=${token}`;
+    console.log(`\n[ŞIFRE SIFIRLAMA] Kullanıcı: ${result.rows[0].name} (${email})`);
+    console.log(`[ŞIFRE SIFIRLAMA] Bağlantı: ${resetUrl}\n`);
+
+    res.json({ message: 'E-posta adresinize şifre sıfırlama bağlantısı gönderildi.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Sunucu hatası', error: err.message });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  const { token, password } = req.body;
+  if (!password || password.length < 6) {
+    return res.status(400).json({ message: 'Şifre en az 6 karakter olmalıdır.' });
+  }
+  try {
+    const result = await pool.query(
+      'SELECT id FROM users WHERE reset_token = $1 AND reset_token_expires > NOW()',
+      [token]
+    );
+    if (!result.rows.length) return res.status(400).json({ message: 'Bağlantı geçersiz veya süresi dolmuş.' });
+
+    const hashed = await bcrypt.hash(password, 10);
+    await pool.query(
+      'UPDATE users SET password = $1, reset_token = NULL, reset_token_expires = NULL WHERE id = $2',
+      [hashed, result.rows[0].id]
+    );
+    res.json({ message: 'Şifreniz başarıyla güncellendi.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Sunucu hatası', error: err.message });
+  }
+};
+
+module.exports = { register, login, me, updateProfile, changePassword, forgotPassword, resetPassword };

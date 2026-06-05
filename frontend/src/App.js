@@ -5,6 +5,9 @@ import CustomerNav from './components/CustomerNav';
 import CourierNav from './components/CourierNav';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import NotFound from './pages/NotFound';
 import Home from './pages/customer/Home';
 import RestaurantDetail from './pages/customer/RestaurantDetail';
 import MyOrders from './pages/customer/MyOrders';
@@ -57,6 +60,8 @@ function AppRoutes() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/" element={<HomeRoute />} />
           <Route path="/restaurant/:id" element={<PrivateRoute roles={['customer']}><RestaurantDetail /></PrivateRoute>} />
           <Route path="/orders" element={<PrivateRoute roles={['customer']}><MyOrders /></PrivateRoute>} />
@@ -66,6 +71,7 @@ function AppRoutes() {
           <Route path="/courier" element={<PrivateRoute roles={['courier']}><CourierPanel /></PrivateRoute>} />
           <Route path="/courier/profile" element={<PrivateRoute roles={['courier']}><CourierProfile /></PrivateRoute>} />
           <Route path="/admin" element={<PrivateRoute roles={['admin']}><AdminPanel /></PrivateRoute>} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
       {isCustomerPage && <CustomerNav />}

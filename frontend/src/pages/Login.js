@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
@@ -8,6 +8,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const successMessage = location.state?.message;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -70,6 +72,11 @@ export default function Login() {
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Tekrar hoş geldiniz</h2>
           <p className="text-gray-500 text-sm mb-8">Hesabınıza giriş yapın</p>
 
+          {successMessage && (
+            <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
+              <span>✅</span> {successMessage}
+            </div>
+          )}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
               <span>⚠️</span> {error}
@@ -85,7 +92,10 @@ export default function Login() {
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition placeholder:text-gray-400" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Şifre</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-sm font-medium text-gray-700">Şifre</label>
+                <Link to="/forgot-password" className="text-xs text-red-600 hover:text-red-700">Şifremi unuttum</Link>
+              </div>
               <input type="password" required value={form.password}
                 onChange={e => setForm({...form, password: e.target.value})}
                 placeholder="••••••••"

@@ -129,7 +129,12 @@ export default function Home() {
                 </div>
               )}
               <div className="p-4">
-                <h3 className="font-semibold text-gray-800 mb-1">{r.name}</h3>
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <h3 className="font-semibold text-gray-800">{r.name}</h3>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${r.is_open ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {r.is_open ? 'Açık' : 'Kapalı'}
+                  </span>
+                </div>
                 <p className="text-xs text-gray-400 line-clamp-2">{r.description || 'Lezzetli yemekler sizi bekliyor'}</p>
                 {r.categories?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">

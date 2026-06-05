@@ -7,6 +7,7 @@ import OrderManager from './OrderManager';
 import EarningsReport from './EarningsReport';
 import MerchantProfile from './MerchantProfile';
 import MerchantReviews from './MerchantReviews';
+import WorkingHours from './WorkingHours';
 
 export default function MerchantPanel() {
   const [restaurant, setRestaurant] = useState(undefined);
@@ -86,6 +87,7 @@ export default function MerchantPanel() {
     { key: 'reviews',  label: 'Değerlendirmeler' },
     { key: 'earnings', label: 'Kazanç Raporu' },
     { key: 'menu',     label: 'Menü Yönetimi' },
+    { key: 'hours',    label: 'Çalışma Saatleri' },
     { key: 'business', label: 'İşletme Profili' },
     { key: 'profile',  label: 'Hesabım' },
   ];
@@ -156,6 +158,7 @@ export default function MerchantPanel() {
       {tab === 'reviews'  && <MerchantReviews />}
       {tab === 'earnings' && <EarningsReport />}
       {tab === 'menu'     && <MenuManager restaurant={restaurant} />}
+      {tab === 'hours'    && <WorkingHours />}
       {tab === 'business' && <RestaurantSetup existing={restaurant} onUpdated={setRestaurant} />}
       {tab === 'profile'  && <MerchantProfile />}
     </div>

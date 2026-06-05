@@ -134,7 +134,17 @@ export default function RestaurantDetail() {
       </div>
 
       <div className="mb-5">
-        <h1 className="text-2xl font-bold text-gray-800 mb-1">{restaurant.name}</h1>
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <h1 className="text-2xl font-bold text-gray-800">{restaurant.name}</h1>
+          <span className={`text-xs px-3 py-1 rounded-full font-medium shrink-0 mt-1 ${restaurant.is_open ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+            {restaurant.is_open ? 'Açık' : 'Kapalı'}
+          </span>
+        </div>
+        {restaurant.today_open && (
+          <p className="text-xs text-gray-400 mb-1">
+            🕐 Bugün: {restaurant.today_closed ? 'Kapalı' : `${String(restaurant.today_open).slice(0,5)} – ${String(restaurant.today_close).slice(0,5)}`}
+          </p>
+        )}
         {restaurant.description && <p className="text-sm text-gray-500 mb-2">{restaurant.description}</p>}
         <div className="flex items-center gap-3 flex-wrap">
           <p className="text-gray-400 text-sm">📍 {restaurant.address}</p>

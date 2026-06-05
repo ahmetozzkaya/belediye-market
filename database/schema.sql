@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS users (
   address TEXT,
   role VARCHAR(20) NOT NULL CHECK (role IN ('customer', 'merchant', 'courier', 'admin')),
   is_active BOOLEAN DEFAULT true,
+  reset_token VARCHAR(255),
+  reset_token_expires TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -50,6 +52,17 @@ CREATE TABLE IF NOT EXISTS restaurants (
   is_active BOOLEAN DEFAULT false,
   approval_status VARCHAR(20) DEFAULT 'pending' CHECK (approval_status IN ('pending', 'approved', 'rejected')),
   created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Restoran Çalışma Saatleri (0=Pazar, 1=Pazartesi ... 6=Cumartesi)
+CREATE TABLE IF NOT EXISTS restaurant_hours (
+  id SERIAL PRIMARY KEY,
+  restaurant_id INTEGER REFERENCES restaurants(id) ON DELETE CASCADE,
+  day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+  open_time TIME NOT NULL DEFAULT '09:00',
+  close_time TIME NOT NULL DEFAULT '22:00',
+  is_closed BOOLEAN DEFAULT false,
+  UNIQUE(restaurant_id, day_of_week)
 );
 
 -- Menü Kategorileri
@@ -122,6 +135,17 @@ CREATE TABLE IF NOT EXISTS reviews (
   is_visible BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Index'ler
+CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);
+CREATE INDEX IF NOT EXISTS idx_orders_restaurant_id ON orders(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_orders_courier_id ON orders(courier_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_menu_items_category_id ON menu_items(category_id);
+CREATE INDEX IF NOT EXISTS idx_menu_categories_restaurant_id ON menu_categories(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_restaurant_id ON reviews(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_merchant_earnings_restaurant_id ON merchant_earnings(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_restaurant_hours_restaurant_id ON restaurant_hours(restaurant_id);
 
 -- Örnek Veri: Belediye
 INSERT INTO municipalities (name, primary_color, secondary_color)

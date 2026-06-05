@@ -4,6 +4,8 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 require('dotenv').config();
 
+const { apiLimiter } = require('./middleware/rateLimiter');
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -12,6 +14,7 @@ const io = new Server(server, {
 
 app.use(cors());
 app.use(express.json());
+app.use('/api', apiLimiter);
 
 // io nesnesini route'lara aktar
 app.set('io', io);
@@ -25,6 +28,8 @@ app.use('/api/addresses', require('./routes/addresses'));
 app.use('/api/reviews', require('./routes/reviews'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'Sunucu çalışıyor' }));
+
+app.use('/api/*', (req, res) => res.status(404).json({ message: 'Endpoint bulunamadı' }));
 
 io.on('connection', (socket) => {
   console.log(`[Socket] Bağlandı: ${socket.id}`);

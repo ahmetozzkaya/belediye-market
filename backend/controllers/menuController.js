@@ -19,11 +19,33 @@ const createRestaurant = async (req, res) => {
     if (existing.rows.length) return res.status(400).json({ message: 'Zaten bir işletmeniz mevcut' });
 
     const { categories = [] } = req.body;
-    const result = await pool.query(
-      'INSERT INTO restaurants (municipality_id, owner_id, name, description, address, phone, courier_type, categories, is_active, approval_status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
-      [municipality_id, req.user.id, name, description, address, phone, courier_type, categories, false, 'pending']
-    );
-    res.status(201).json(result.rows[0]);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        'INSERT INTO restaurants (municipality_id, owner_id, name, description, address, phone, courier_type, categories, is_active, approval_status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
+        [municipality_id, req.user.id, name, description, address, phone, courier_type, categories, false, 'pending']
+      );
+      const restaurantId = result.rows[0].id;
+
+      // Varsayılan çalışma saatleri: Pzt-Cmt 09:00-22:00, Pazar 10:00-21:00
+      for (let day = 0; day <= 6; day++) {
+        const openTime = day === 0 ? '10:00' : '09:00';
+        const closeTime = day === 0 ? '21:00' : '22:00';
+        await client.query(
+          'INSERT INTO restaurant_hours (restaurant_id, day_of_week, open_time, close_time) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING',
+          [restaurantId, day, openTime, closeTime]
+        );
+      }
+
+      await client.query('COMMIT');
+      res.status(201).json(result.rows[0]);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   } catch (err) {
     res.status(500).json({ message: 'Sunucu hatası', error: err.message });
   }
@@ -242,4 +264,56 @@ const getEarnings = async (req, res) => {
   }
 };
 
-module.exports = { getMyRestaurant, createRestaurant, updateRestaurant, getCategories, createCategory, updateCategory, deleteCategory, createItem, updateItem, deleteItem, getEarnings };
+const getHours = async (req, res) => {
+  try {
+    const restaurant = await pool.query('SELECT id FROM restaurants WHERE owner_id = $1', [req.user.id]);
+    if (!restaurant.rows.length) return res.status(404).json({ message: 'İşletme bulunamadı' });
+
+    const result = await pool.query(
+      'SELECT * FROM restaurant_hours WHERE restaurant_id = $1 ORDER BY day_of_week',
+      [restaurant.rows[0].id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Sunucu hatası', error: err.message });
+  }
+};
+
+const updateHours = async (req, res) => {
+  const { hours } = req.body; // array of { day_of_week, open_time, close_time, is_closed }
+  try {
+    const restaurant = await pool.query('SELECT id FROM restaurants WHERE owner_id = $1', [req.user.id]);
+    if (!restaurant.rows.length) return res.status(404).json({ message: 'İşletme bulunamadı' });
+
+    const restaurantId = restaurant.rows[0].id;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const h of hours) {
+        await client.query(
+          `INSERT INTO restaurant_hours (restaurant_id, day_of_week, open_time, close_time, is_closed)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (restaurant_id, day_of_week)
+           DO UPDATE SET open_time = $3, close_time = $4, is_closed = $5`,
+          [restaurantId, h.day_of_week, h.open_time, h.close_time, h.is_closed]
+        );
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    const result = await pool.query(
+      'SELECT * FROM restaurant_hours WHERE restaurant_id = $1 ORDER BY day_of_week',
+      [restaurantId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Sunucu hatası', error: err.message });
+  }
+};
+
+module.exports = { getMyRestaurant, createRestaurant, updateRestaurant, getCategories, createCategory, updateCategory, deleteCategory, createItem, updateItem, deleteItem, getEarnings, getHours, updateHours };
